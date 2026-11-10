@@ -7,7 +7,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 - Not a delivery-driver service — restaurants handle pickup or their own delivery.
 - No real payments in v0.1 — orders show a total; payment happens outside the app.
 
-> **Build status:** Milestones 1–2 (setup, database + sample data) are done. See [Milestones](#milestones) below.
+> **Build status:** Milestones 1–3 (setup, database + sample data, login) are done. See [Milestones](#milestones) below.
 
 ## Tech stack
 
@@ -16,7 +16,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 | Framework | Next.js 15 (App Router) + TypeScript |
 | Styling | Tailwind CSS 4 |
 | Database | SQLite via Prisma ORM 6 |
-| Auth | Auth.js / NextAuth, email + password, bcrypt (Milestone 3) |
+| Auth | Auth.js (NextAuth v4), email + password, bcryptjs |
 | Validation | Zod |
 | Tests | Vitest |
 
@@ -44,6 +44,10 @@ No paid services or API keys are needed.
    ```bash
    cp .env.example .env
    ```
+   Then set `AUTH_SECRET` to your own random value (it signs login cookies):
+   ```bash
+   openssl rand -base64 32
+   ```
    Optionally change `DEFAULT_LAT` / `DEFAULT_LNG` to where you'll be testing.
 
 4. **Create the database** (this also loads the sample data the first time):
@@ -62,6 +66,20 @@ No paid services or API keys are needed.
    npm run dev
    ```
    Open <http://localhost:3000>.
+
+## Accounts and logins
+
+There are two separate account types with separate pages:
+
+| Role | Sign up | Log in | Lands on |
+|---|---|---|---|
+| Customer (organizer) | `/signup` | `/login` | `/restaurants` |
+| Restaurant owner | `/owner/signup` | `/owner/login` | `/owner/dashboard` |
+
+- Roles are checked on the server in two places: `middleware.ts` (before a page loads) and
+  `requireRole()` / `requireRoleApi()` in `lib/session.ts` (inside every protected page and API route).
+- A customer opening `/owner/...` is sent to `/restaurants`; an owner opening customer pages is sent to `/owner/dashboard`.
+- Group-order participants who open a shared link don't need an account (Milestone 6).
 
 ## ⚠️ Sample restaurants and test logins
 
@@ -117,6 +135,10 @@ app/              Pages and API routes (Next.js App Router). Folders = URLs.
 components/       Reusable React components (cards, badges, forms)
 lib/              Plain TypeScript logic: database client, pricing, distance, order status
   db.ts           Shared Prisma client
+  auth.ts         Auth.js login setup (email + password, role in session)
+  session.ts      requireRole() / requireRoleApi() server-side role checks
+middleware.ts     Redirects users away from pages their role can't use
+types/            TypeScript additions (session has user id + role)
 prisma/
   schema.prisma   Database models (all money is integer cents)
   migrations/     Database change history (commit these)
@@ -129,7 +151,7 @@ prisma/
 
 1. ✅ Setup — Next.js + TypeScript + Tailwind + Prisma (SQLite), README, `.env.example`
 2. ✅ Data + seed — Prisma schema, clearly marked `[SAMPLE]` restaurants, `db:remove-samples`
-3. ⬜ Auth — separate customer/owner sign-up & login, role-protected routes
+3. ✅ Auth — separate customer/owner sign-up & login, role-protected routes
 4. ⬜ Restaurant search — geolocation, ZIP fallback, distance sorting, filters
 5. ⬜ Owner tools — profile, menu, bulk pricing, order rules
 6. ⬜ Group ordering — share link, participant entry, pricing, submit

@@ -36,6 +36,9 @@ No paid services or API keys are needed.
    cd diamond-challenge
    npm install
    ```
+   ⚠️ Don't skip this. Without it, `npx prisma …` downloads the newest Prisma (v7), which
+   doesn't work with this project and fails with *"The datasource property `url` is no longer
+   supported"*. This project pins Prisma **6.19.3**.
 
 3. **Create your `.env` file** from the example (never commit `.env`):
    ```bash
@@ -45,8 +48,9 @@ No paid services or API keys are needed.
 
 4. **Create the database** (this also loads the sample data the first time):
    ```bash
-   npx prisma migrate dev
+   npm run db:migrate
    ```
+   (Same as `npx prisma migrate dev`, but always uses the project's own Prisma version.)
 
 5. **Load (or reload) the sample data** — safe to run again any time:
    ```bash

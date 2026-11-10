@@ -1,6 +1,7 @@
-// Prisma schema — database models live here.
-// Milestone 1: only the database connection is set up.
-// Milestone 2 adds all the models from Section 8 of the spec.
+// Prisma schema — every database table for the app (spec Section 8).
+//
+// Money rule: ALL prices are stored as whole integer CENTS (e.g. $12.50 = 1250).
+// Never store money as a decimal/float.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +12,245 @@ datasource db {
   // change "sqlite" to "postgresql" and update DATABASE_URL in .env.
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  OWNER
+}
+
+enum Fulfillment {
+  PICKUP
+  DELIVERY
+}
+
+// Allowed moves between statuses live in lib/orderStatus.ts.
+enum OrderStatus {
+  COLLECTING
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String // bcrypt hash — never log or return this
+  name         String
+  phone        String?
+  role         Role
+  createdAt    DateTime @default(now())
+
+  restaurants     Restaurant[] // only used by OWNER accounts
+  organizedOrders GroupOrder[] // only used by CUSTOMER accounts
+  statusChanges   OrderStatusEvent[]
+}
+
+model Restaurant {
+  id          String  @id @default(cuid())
+  ownerId     String
+  owner       User    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  name        String
+  description String
+  cuisine     String
+  address     String
+  lat         Float
+  lng         Float
+  phone       String
+  hours       String? // free text, e.g. "Mon–Sat 11am–9pm" (added: spec 7.1 lists "hours")
+  imageUrl    String?
+
+  // Made-up test restaurants. Seeded ones are always true. See spec Section 5.
+  isSample Boolean @default(false)
+
+  // Group order rules (spec 7.4)
+  acceptsGroupOrders  Boolean @default(true)
+  minGroupSize        Int     @default(10) // in items
+  maxGroupSize        Int? // in items; null = no limit
+  leadTimeHours       Int     @default(24)
+  allowsPickup        Boolean @default(true)
+  allowsDelivery      Boolean @default(false)
+  deliveryRadiusMiles Float?
+  deliveryFee         Int? // cents
+  serviceFee          Int? // cents, flat service/packaging fee
+  organizerNotes      String?
+
+  createdAt DateTime @default(now())
+
+  timeSlotRules TimeSlotRule[]
+  categories    MenuCategory[]
+  menuItems     MenuItem[]
+  discountTiers BulkDiscountTier[]
+  groupOrders   GroupOrder[]
+
+  @@index([ownerId])
+}
+
+// One row = one window of time on one weekday, split into slots.
+// e.g. Friday 16:00–20:00 in 30-minute slots, max 2 group orders per slot.
+model TimeSlotRule {
+  id               String     @id @default(cuid())
+  restaurantId     String
+  restaurant       Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  dayOfWeek        Int // 0 = Sunday … 6 = Saturday (same as JavaScript's Date.getDay())
+  startTime        String // "16:00" (24-hour)
+  endTime          String // "20:00"
+  slotMinutes      Int        @default(30)
+  maxOrdersPerSlot Int        @default(2)
+
+  @@index([restaurantId])
+}
+
+model MenuCategory {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  sortOrder    Int        @default(0)
+
+  items MenuItem[]
+
+  @@index([restaurantId])
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name         String
+  description  String       @default("")
+  basePrice    Int // cents
+  isAvailable  Boolean      @default(true)
+  isDeleted    Boolean      @default(false) // soft delete: never hard-delete items used in past orders
+
+  // Optional bulk price override: when the order has >= bulkMinQty of THIS item,
+  // bulkPrice is used instead of basePrice (and tier discounts don't stack on it).
+  bulkPrice  Int? // cents
+  bulkMinQty Int?
+
+  optionGroups OptionGroup[]
+  orderLines   OrderLine[]
+
+  @@index([restaurantId])
+  @@index([categoryId])
+}
+
+// e.g. "Size" (required, pick exactly 1) or "Add-ons" (optional, pick up to 3)
+model OptionGroup {
+  id         String   @id @default(cuid())
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name       String
+  required   Boolean  @default(false)
+  minSelect  Int      @default(0)
+  maxSelect  Int      @default(1)
+  sortOrder  Int      @default(0) // added: keeps groups in a stable display order
+
+  options Option[]
+
+  @@index([menuItemId])
+}
+
+model Option {
+  id            String      @id @default(cuid())
+  optionGroupId String
+  optionGroup   OptionGroup @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
+  name          String
+  priceDelta    Int         @default(0) // cents, added to the item price
+  sortOrder     Int         @default(0) // added: keeps options in a stable display order
+
+  @@index([optionGroupId])
+}
+
+// e.g. 20+ items = 5% off, 50+ = 10% off. Highest qualifying tier applies.
+model BulkDiscountTier {
+  id              String     @id @default(cuid())
+  restaurantId    String
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  minQuantity     Int
+  discountPercent Int // whole percent, e.g. 10 = 10%
+
+  @@index([restaurantId])
+}
+
+model GroupOrder {
+  id           String     @id @default(cuid())
+  restaurantId String
+  // Restrict: a restaurant with order history can't be deleted by accident.
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  organizerId  String
+  organizer    User       @relation(fields: [organizerId], references: [id], onDelete: Restrict)
+  eventName    String
+  shareCode    String     @unique // random, hard to guess; used in /join/[shareCode]
+
+  fulfillment         Fulfillment
+  deliveryAddress     String? // only for DELIVERY orders
+  scheduledFor        DateTime
+  participantDeadline DateTime
+  expectedHeadcount   Int?
+
+  status OrderStatus @default(COLLECTING)
+
+  // Computed on the server at submit time, then frozen. All cents.
+  subtotalCents Int @default(0)
+  discountCents Int @default(0)
+  feesCents     Int @default(0)
+  totalCents    Int @default(0)
+
+  ownerNote    String? // note from the restaurant, visible to the organizer
+  rejectReason String?
+  createdAt    DateTime  @default(now())
+  submittedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  lines        OrderLine[]
+  statusEvents OrderStatusEvent[]
+
+  @@index([restaurantId, status])
+  @@index([organizerId])
+}
+
+// One person's item in a group order. Name/price/options are SNAPSHOTS copied
+// at the time of ordering, so later menu edits never change past orders.
+model OrderLine {
+  id               String     @id @default(cuid())
+  groupOrderId     String
+  groupOrder       GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  participantName  String
+  participantToken String // random token stored in the participant's browser; lets them edit only their own lines
+
+  menuItemId String
+  // Restrict: menu items that appear in orders must be soft-deleted, never hard-deleted.
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  itemNameSnapshot        String
+  unitPriceSnapshot       Int // cents: the item's base price when it was added (options are separate)
+  quantity                Int
+  selectedOptionsSnapshot Json // [{ "group": "Size", "option": "Large", "priceDelta": 200 }]
+  specialInstructions     String?
+  createdAt               DateTime @default(now())
+
+  @@index([groupOrderId])
+  @@index([menuItemId])
+}
+
+// Every status change is logged here. Powers the status timeline.
+model OrderStatusEvent {
+  id              String       @id @default(cuid())
+  groupOrderId    String
+  groupOrder      GroupOrder   @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  fromStatus      OrderStatus? // null for the very first event (order created)
+  toStatus        OrderStatus
+  changedByUserId String?
+  changedBy       User?        @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+  note            String?
+  createdAt       DateTime     @default(now())
+
+  @@index([groupOrderId])
 }

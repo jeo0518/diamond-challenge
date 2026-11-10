@@ -7,7 +7,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 - Not a delivery-driver service — restaurants handle pickup or their own delivery.
 - No real payments in v0.1 — orders show a total; payment happens outside the app.
 
-> **Build status:** Milestones 1–3 (setup, database + sample data, login) are done. See [Milestones](#milestones) below.
+> **Build status:** Milestones 1–4 (setup, database + sample data, login, restaurant search) are done. See [Milestones](#milestones) below.
 
 ## Tech stack
 
@@ -111,6 +111,11 @@ npm run db:remove-samples
 Real restaurants (`isSample = false`) are never touched. To just *hide* samples from search without
 deleting them, set `SHOW_SAMPLE_RESTAURANTS="false"` in `.env` (search arrives in Milestone 4).
 
+**Testing far from Austin?** The samples are placed around `DEFAULT_LAT` / `DEFAULT_LNG`, and search
+shows restaurants within 25 mi by default. If your browser shares a location far away, you'll see
+no results. Either click "Search the default area", type `78701` in the ZIP box, or set
+`DEFAULT_LAT` / `DEFAULT_LNG` in `.env` to your own area and run `npm run db:seed` again.
+
 To wipe the whole database and start over: `npx prisma migrate reset`.
 
 ## Useful commands
@@ -137,6 +142,10 @@ lib/              Plain TypeScript logic: database client, pricing, distance, or
   db.ts           Shared Prisma client
   auth.ts         Auth.js login setup (email + password, role in session)
   session.ts      requireRole() / requireRoleApi() server-side role checks
+  geo.ts          Haversine distance in miles (+ geo.test.ts)
+  zipLookup.ts    PLACEHOLDER ZIP/city → coordinates table (no paid API)
+  restaurantSearch.ts  Search filters + distance sorting (+ test)
+  format.ts       Money, distance, and time display helpers
 middleware.ts     Redirects users away from pages their role can't use
 types/            TypeScript additions (session has user id + role)
 prisma/
@@ -152,7 +161,7 @@ prisma/
 1. ✅ Setup — Next.js + TypeScript + Tailwind + Prisma (SQLite), README, `.env.example`
 2. ✅ Data + seed — Prisma schema, clearly marked `[SAMPLE]` restaurants, `db:remove-samples`
 3. ✅ Auth — separate customer/owner sign-up & login, role-protected routes
-4. ⬜ Restaurant search — geolocation, ZIP fallback, distance sorting, filters
+4. ✅ Restaurant search — geolocation, ZIP fallback, distance sorting, filters
 5. ⬜ Owner tools — profile, menu, bulk pricing, order rules
 6. ⬜ Group ordering — share link, participant entry, pricing, submit
 7. ⬜ Owner order management — dashboard, kitchen summary, status actions

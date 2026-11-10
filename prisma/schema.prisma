@@ -1,0 +1,14 @@
+// Prisma schema — database models live here.
+// Milestone 1: only the database connection is set up.
+// Milestone 2 adds all the models from Section 8 of the spec.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite for local development. To switch to Postgres later,
+  // change "sqlite" to "postgresql" and update DATABASE_URL in .env.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}

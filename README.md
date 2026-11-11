@@ -7,7 +7,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 - Not a delivery-driver service — restaurants handle pickup or their own delivery.
 - No real payments in v0.1 — orders show a total; payment happens outside the app.
 
-> **Build status:** Milestones 1–4 (setup, database + sample data, login, restaurant search) are done. See [Milestones](#milestones) below.
+> **Build status:** Milestones 1–5 (setup, sample data, login, restaurant search, owner tools) are done. See [Milestones](#milestones) below.
 
 ## Tech stack
 
@@ -80,6 +80,19 @@ There are two separate account types with separate pages:
   `requireRole()` / `requireRoleApi()` in `lib/session.ts` (inside every protected page and API route).
 - A customer opening `/owner/...` is sent to `/restaurants`; an owner opening customer pages is sent to `/owner/dashboard`.
 - Group-order participants who open a shared link don't need an account (Milestone 6).
+- Owner API routes (`app/api/owner/...`) use `requireOwnerApi()` in `lib/owner.ts`, which only ever
+  loads the caller's own restaurant, so an owner can't touch another restaurant's data.
+
+## Owner tools
+
+| Page | What owners do there |
+|---|---|
+| `/owner/restaurant` | Profile: name, cuisine, address, map coordinates, phone, hours, photo URL. A new owner starts here. |
+| `/owner/menu` | Categories and items, available on/off, option groups (e.g. Size: required, pick 1). |
+| `/owner/pricing` | Bulk discount tiers, service/delivery fees, per-item bulk prices, live price preview. |
+| `/owner/settings` | Accepting orders on/off, min/max size, lead time, pickup/delivery, time slots, notes. |
+
+Deleting a menu item or category only hides it (soft delete), so past orders never change.
 
 ## ⚠️ Sample restaurants and test logins
 
@@ -146,6 +159,9 @@ lib/              Plain TypeScript logic: database client, pricing, distance, or
   zipLookup.ts    PLACEHOLDER ZIP/city → coordinates table (no paid API)
   restaurantSearch.ts  Search filters + distance sorting (+ test)
   format.ts       Money, distance, and time display helpers
+  pricing.ts      Group order price calculation, spec Section 10 (+ pricing.test.ts)
+  owner.ts        Owner page/API helpers (role + "your own restaurant" checks)
+  validation/     Zod schemas for every form and API input
 middleware.ts     Redirects users away from pages their role can't use
 types/            TypeScript additions (session has user id + role)
 prisma/
@@ -162,7 +178,7 @@ prisma/
 2. ✅ Data + seed — Prisma schema, clearly marked `[SAMPLE]` restaurants, `db:remove-samples`
 3. ✅ Auth — separate customer/owner sign-up & login, role-protected routes
 4. ✅ Restaurant search — geolocation, ZIP fallback, distance sorting, filters
-5. ⬜ Owner tools — profile, menu, bulk pricing, order rules
+5. ✅ Owner tools — profile, menu, bulk pricing, order rules
 6. ⬜ Group ordering — share link, participant entry, pricing, submit
 7. ⬜ Owner order management — dashboard, kitchen summary, status actions
 8. ⬜ Order history — list, timeline, reorder, cancel

@@ -18,6 +18,7 @@ async function loadRestaurant(id: string) {
     where: { id },
     include: {
       categories: {
+        where: { isDeleted: false },
         orderBy: { sortOrder: "asc" },
         include: {
           // Customers only see items that are available and not deleted.

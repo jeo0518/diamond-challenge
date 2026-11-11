@@ -111,6 +111,9 @@ model MenuCategory {
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   name         String
   sortOrder    Int        @default(0)
+  // Soft delete (added): a category can hold soft-deleted items that past orders
+  // still point to, so categories are hidden instead of removed.
+  isDeleted    Boolean    @default(false)
 
   items MenuItem[]
 

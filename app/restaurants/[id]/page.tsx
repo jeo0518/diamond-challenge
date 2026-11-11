@@ -99,14 +99,12 @@ export default async function RestaurantDetailPage({ params, searchParams }: { p
 
         <div className="pt-2">
           {restaurant.acceptsGroupOrders ? (
-            // TODO (Milestone 6): link to the "Start Group Order" form.
-            <button
-              disabled
-              title="Coming in Milestone 6"
-              className="w-full cursor-not-allowed rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white opacity-60 sm:w-auto"
+            <Link
+              href={`/restaurants/${restaurant.id}/start`}
+              className="block w-full rounded-lg bg-orange-600 px-5 py-3 text-center font-semibold text-white hover:bg-orange-700 sm:inline-block sm:w-auto"
             >
-              Start Group Order <span className="text-xs font-normal">(coming in Milestone 6)</span>
-            </button>
+              Start Group Order
+            </Link>
           ) : (
             <p className="rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600">This restaurant isn&apos;t taking group orders right now.</p>
           )}

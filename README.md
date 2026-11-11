@@ -7,7 +7,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 - Not a delivery-driver service — restaurants handle pickup or their own delivery.
 - No real payments in v0.1 — orders show a total; payment happens outside the app.
 
-> **Build status:** Milestones 1–5 (setup, sample data, login, restaurant search, owner tools) are done. See [Milestones](#milestones) below.
+> **Build status:** Milestones 1–6 (setup, sample data, login, search, owner tools, group ordering) are done. See [Milestones](#milestones) below.
 
 ## Tech stack
 
@@ -94,6 +94,29 @@ There are two separate account types with separate pages:
 
 Deleting a menu item or category only hides it (soft delete), so past orders never change.
 
+## Group orders (how the core flow works)
+
+1. A logged-in customer opens a restaurant and clicks **Start Group Order** (`/restaurants/[id]/start`):
+   event name, a time slot (only slots past the lead time with room left), pickup or delivery, headcount,
+   and a deadline for people to add items.
+2. They land on **`/group/[id]`** with a share link like `http://localhost:3000/join/k3Jd9xQ2mPzr`.
+3. Anyone with the link opens **`/join/[shareCode]`**, types a name (no account), and adds items.
+   Their browser keeps a random token, so they can change or remove **only their own** items until the deadline.
+4. The organizer's page refreshes every 15 seconds: who ordered what, item totals, and the price with bulk
+   discounts. They can remove any item, add items for anyone, or close collection early.
+5. **Submit to Restaurant** re-checks the rules on the server (min/max items, lead time, slot capacity,
+   items still available), calculates the price on the server, freezes the totals, and sets the status to `SUBMITTED`.
+
+**Testing with several "people":** open the share link in different browsers or a private/incognito window.
+Each one is a separate participant. To try it from a phone on the same Wi-Fi, run `npm run dev -- -H 0.0.0.0`
+and open `http://<your-Mac's-IP>:3000` on the phone (find the IP in System Settings → Wi-Fi → Details).
+
+**Time zone note:** time slots like "4:00 PM" use the time zone of the computer running the app.
+That's fine for v0.1; a per-restaurant time zone is a TODO.
+
+**Delivery distance:** we check the delivery ZIP against the small placeholder ZIP table (or the organizer's
+browser location), since there's no paid address lookup. The street address is only stored for delivery orders.
+
 ## ⚠️ Sample restaurants and test logins
 
 No real restaurant has joined yet, so the seed creates **8 made-up SAMPLE restaurants** placed
@@ -162,6 +185,11 @@ lib/              Plain TypeScript logic: database client, pricing, distance, or
   pricing.ts      Group order price calculation, spec Section 10 (+ pricing.test.ts)
   owner.ts        Owner page/API helpers (role + "your own restaurant" checks)
   validation/     Zod schemas for every form and API input
+  orderStatus.ts  Allowed status changes (+ test)
+  timeSlots.ts    Weekly rules → bookable time slots (+ test)
+  orderLines.ts   Checks option choices and builds order line snapshots (+ test)
+  submitChecks.ts Rules an order must pass before it's sent (+ test)
+  groupOrders.ts  Database helpers for group orders
 middleware.ts     Redirects users away from pages their role can't use
 types/            TypeScript additions (session has user id + role)
 prisma/
@@ -179,7 +207,7 @@ prisma/
 3. ✅ Auth — separate customer/owner sign-up & login, role-protected routes
 4. ✅ Restaurant search — geolocation, ZIP fallback, distance sorting, filters
 5. ✅ Owner tools — profile, menu, bulk pricing, order rules
-6. ⬜ Group ordering — share link, participant entry, pricing, submit
+6. ✅ Group ordering — share link, participant entry, pricing, submit
 7. ⬜ Owner order management — dashboard, kitchen summary, status actions
 8. ⬜ Order history — list, timeline, reorder, cancel
 9. ⬜ Polish — loading/error states, mobile layout, tests

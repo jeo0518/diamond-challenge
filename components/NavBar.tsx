@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import LogoutButton from "@/components/LogoutButton";
+import NewOrdersBadge from "@/components/owner/NewOrdersBadge";
+import { findOwnerRestaurant } from "@/lib/owner";
+import { countNewOrders } from "@/lib/ownerOrders";
 
 const CUSTOMER_LINKS = [
   { href: "/restaurants", label: "Restaurants" },
@@ -10,7 +13,7 @@ const CUSTOMER_LINKS = [
 ];
 
 const OWNER_LINKS = [
-  { href: "/owner/dashboard", label: "Orders" }, // M7 adds a "new orders" badge here
+  { href: "/owner/dashboard", label: "Orders" }, // shows the new-orders badge
   { href: "/owner/restaurant", label: "Profile" },
   { href: "/owner/menu", label: "Menu" },
   { href: "/owner/pricing", label: "Pricing" },
@@ -20,6 +23,13 @@ const OWNER_LINKS = [
 export default async function NavBar() {
   const user = await getCurrentUser();
   const links = user?.role === "OWNER" ? OWNER_LINKS : user?.role === "CUSTOMER" ? CUSTOMER_LINKS : [];
+  // Owners: starting count for the new-orders badge (it then polls by itself).
+  let newOrders = 0;
+  if (user?.role === "OWNER") {
+    const restaurant = await findOwnerRestaurant(user.id);
+    if (restaurant) newOrders = await countNewOrders(restaurant.id);
+  }
+  const badge = (href: string) => (href === "/owner/dashboard" ? <NewOrdersBadge initialCount={newOrders} /> : null);
   const homeHref = user?.role === "OWNER" ? "/owner/dashboard" : user ? "/restaurants" : "/";
 
   return (
@@ -40,6 +50,7 @@ export default async function NavBar() {
             {links.map((l) => (
               <Link key={l.href} href={l.href} className="rounded-md px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100">
                 {l.label}
+                {badge(l.href)}
               </Link>
             ))}
           </div>
@@ -69,6 +80,7 @@ export default async function NavBar() {
             {links.map((l) => (
               <Link key={l.href} href={l.href} className="shrink-0 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700">
                 {l.label}
+                {badge(l.href)}
               </Link>
             ))}
           </div>

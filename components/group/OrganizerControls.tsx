@@ -1,7 +1,7 @@
 "use client";
 
 // Small interactive pieces of the organizer page (/group/[id]).
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ItemPicker, { type AddItemInput } from "@/components/group/ItemPicker";
 import type { PickerMenu } from "@/lib/groupOrders";
@@ -20,16 +20,6 @@ function useOrganizerApi() {
     router.refresh();
     return null;
   };
-}
-
-/** Re-loads the page data every 15 seconds so new participant items show up. */
-export function AutoRefresh({ seconds = 15 }: { seconds?: number }) {
-  const router = useRouter();
-  useEffect(() => {
-    const timer = setInterval(() => router.refresh(), seconds * 1000);
-    return () => clearInterval(timer);
-  }, [router, seconds]);
-  return null;
 }
 
 export function ShareLink({ url }: { url: string }) {

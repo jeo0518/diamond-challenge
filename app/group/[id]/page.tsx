@@ -14,7 +14,8 @@ import { STATUS_COLORS, STATUS_LABELS } from "@/lib/orderStatus";
 import { prisma } from "@/lib/db";
 import { isSlotTime } from "@/lib/timeSlots";
 import SampleBadge from "@/components/SampleBadge";
-import { AddForSomeone, AutoRefresh, OrganizerActions, RemoveLineButton, ShareLink } from "@/components/group/OrganizerControls";
+import AutoRefresh from "@/components/AutoRefresh";
+import { AddForSomeone, OrganizerActions, RemoveLineButton, ShareLink } from "@/components/group/OrganizerControls";
 
 export const metadata: Metadata = { title: "Group order — GroupGrub" };
 
@@ -74,7 +75,7 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-5">
-      {collecting && <AutoRefresh />}
+      {collecting && <AutoRefresh seconds={15} />}
 
       <header className="space-y-1 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
         {restaurant.isSample && <SampleBadge className="mb-1" />}
@@ -97,6 +98,13 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
       </header>
 
       {collectionOpen && <ShareLink url={shareUrl} />}
+
+      {(order.rejectReason || order.ownerNote) && (
+        <div className="space-y-1 rounded-xl border border-gray-100 bg-white p-4 text-sm shadow-sm">
+          {order.rejectReason && <p className="text-red-800"><b>Rejected by the restaurant:</b> {order.rejectReason}</p>}
+          {order.ownerNote && <p><b>Note from {restaurant.name}:</b> {order.ownerNote}</p>}
+        </div>
+      )}
 
       {!collecting && (
         <p className="rounded-xl bg-purple-50 p-4 text-sm text-purple-900">

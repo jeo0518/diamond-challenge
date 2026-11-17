@@ -7,7 +7,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 - Not a delivery-driver service — restaurants handle pickup or their own delivery.
 - No real payments in v0.1 — orders show a total; payment happens outside the app.
 
-> **Build status:** Milestones 1–6 (setup, sample data, login, search, owner tools, group ordering) are done. See [Milestones](#milestones) below.
+> **Build status:** Milestones 1–7 (setup, sample data, login, search, owner tools, group ordering, owner order management) are done. See [Milestones](#milestones) below.
 
 ## Tech stack
 
@@ -107,6 +107,12 @@ Deleting a menu item or category only hides it (soft delete), so past orders nev
 5. **Submit to Restaurant** re-checks the rules on the server (min/max items, lead time, slot capacity,
    items still available), calculates the price on the server, freezes the totals, and sets the status to `SUBMITTED`.
 
+6. The restaurant owner sees it on **`/owner/dashboard`** (tabs: New, Upcoming, Ready, Past; orders due within
+   24 hours are highlighted). **`/owner/orders/[id]`** shows items **by person** (for labeling bags), a
+   **kitchen summary** (total of each item + option combo), the frozen price, and the history. The owner moves
+   it through **Accept → Preparing → Ready → Completed**, or **Rejects** it with a required reason, and can
+   leave a note the organizer sees. The red badge next to "Orders" polls every 30 seconds.
+
 **Testing with several "people":** open the share link in different browsers or a private/incognito window.
 Each one is a separate participant. To try it from a phone on the same Wi-Fi, run `npm run dev -- -H 0.0.0.0`
 and open `http://<your-Mac's-IP>:3000` on the phone (find the IP in System Settings → Wi-Fi → Details).
@@ -190,6 +196,8 @@ lib/              Plain TypeScript logic: database client, pricing, distance, or
   orderLines.ts   Checks option choices and builds order line snapshots (+ test)
   submitChecks.ts Rules an order must pass before it's sent (+ test)
   groupOrders.ts  Database helpers for group orders
+  ownerOrders.ts  Owner dashboard tabs, new-order count, "due soon" (+ test)
+  kitchenSummary.ts  Totals per item + option combo for the kitchen (+ test)
 middleware.ts     Redirects users away from pages their role can't use
 types/            TypeScript additions (session has user id + role)
 prisma/
@@ -208,6 +216,6 @@ prisma/
 4. ✅ Restaurant search — geolocation, ZIP fallback, distance sorting, filters
 5. ✅ Owner tools — profile, menu, bulk pricing, order rules
 6. ✅ Group ordering — share link, participant entry, pricing, submit
-7. ⬜ Owner order management — dashboard, kitchen summary, status actions
+7. ✅ Owner order management — dashboard, kitchen summary, status actions
 8. ⬜ Order history — list, timeline, reorder, cancel
 9. ⬜ Polish — loading/error states, mobile layout, tests

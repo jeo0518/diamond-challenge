@@ -12,7 +12,11 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:remove-samples": "tsx --env-file=.env prisma/removeSamples.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:pg:schema": "tsx scripts/postgres-schema.ts",
+    "db:pg:migration": "tsx scripts/postgres-migration.ts",
+    "db:pg:deploy": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
+    "build:vercel": "prisma generate --schema prisma/postgres/schema.prisma && prisma migrate deploy --schema prisma/postgres/schema.prisma && next build"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

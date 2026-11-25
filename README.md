@@ -8,6 +8,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 - No real payments in v0.1 — orders show a total; payment happens outside the app.
 
 > **Build status:** v0.1 is feature-complete — all 9 milestones are done. See [Definition of Done](#definition-of-done-v01).
+> **Going live:** see [docs/DEPLOY.md](docs/DEPLOY.md) (Vercel + Neon Postgres, free plans).
 
 ## Tech stack
 
@@ -15,7 +16,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 |---|---|
 | Framework | Next.js 15 (App Router) + TypeScript |
 | Styling | Tailwind CSS 4 |
-| Database | SQLite via Prisma ORM 6 |
+| Database | SQLite via Prisma ORM 6 on your computer; Postgres online (see [docs/DEPLOY.md](docs/DEPLOY.md)) |
 | Auth | Auth.js (NextAuth v4), email + password, bcryptjs |
 | Validation | Zod |
 | Tests | Vitest |
@@ -48,7 +49,8 @@ No paid services or API keys are needed.
    ```bash
    openssl rand -base64 32
    ```
-   Optionally change `DEFAULT_LAT` / `DEFAULT_LNG` to where you'll be testing.
+   Optionally change `DEFAULT_LAT` / `DEFAULT_LNG` to where you'll be testing, and `APP_TIME_ZONE`
+   to your time zone (e.g. `America/New_York`).
 
 4. **Create the database** (this also loads the sample data the first time):
    ```bash
@@ -129,8 +131,9 @@ Deleting a menu item or category only hides it (soft delete), so past orders nev
 Each one is a separate participant. To try it from a phone on the same Wi-Fi, run `npm run dev -- -H 0.0.0.0`
 and open `http://<your-Mac's-IP>:3000` on the phone (find the IP in System Settings → Wi-Fi → Details).
 
-**Time zone note:** time slots like "4:00 PM" use the time zone of the computer running the app.
-That's fine for v0.1; a per-restaurant time zone is a TODO.
+**Time zone note:** time slots like "4:00 PM" are in `APP_TIME_ZONE` from `.env` (default `America/Chicago`),
+never the server's own clock, because hosting servers usually run on UTC. One time zone for the whole app in v0.1;
+a per-restaurant time zone is a TODO.
 
 **Delivery distance:** we check the delivery ZIP against the small placeholder ZIP table (or the organizer's
 browser location), since there's no paid address lookup. The street address is only stored for delivery orders.
@@ -203,6 +206,8 @@ To wipe the whole database and start over: `npx prisma migrate reset`.
 | `npm run db:migrate` | Apply database schema changes |
 | `npm run db:seed` | Load the SAMPLE restaurants and test logins |
 | `npm run db:remove-samples` | Delete all SAMPLE restaurants, their data, and sample accounts |
+| `npm run db:pg:migration -- <name>` | After a schema change: create the matching **Postgres** migration for the live site |
+| `npm run build:vercel` | What Vercel runs on deploy (Postgres client + migrations + build) |
 | `npm run db:studio` | Open Prisma Studio to browse the database |
 
 ## Folder structure
@@ -223,6 +228,10 @@ lib/              Plain TypeScript logic: database client, pricing, distance, or
   pricing.ts      Group order price calculation, spec Section 10 (+ pricing.test.ts)
   owner.ts        Owner page/API helpers (role + "your own restaurant" checks)
   validation/     Zod schemas for every form and API input
+  timezone.ts     All date math in APP_TIME_ZONE, not the server's clock (+ test)
+  postgresSchema.ts  Builds the Postgres schema from the SQLite one (+ sync test)
+scripts/          db:pg:schema and db:pg:migration helpers
+docs/DEPLOY.md    Step-by-step guide to put the site online
   orderStatus.ts  Allowed status changes (+ test)
   timeSlots.ts    Weekly rules → bookable time slots (+ test)
   orderLines.ts   Checks option choices and builds order line snapshots (+ test)
@@ -236,7 +245,8 @@ middleware.ts     Redirects users away from pages their role can't use
 types/            TypeScript additions (session has user id + role)
 prisma/
   schema.prisma   Database models (all money is integer cents)
-  migrations/     Database change history (commit these)
+  migrations/     Database change history for SQLite (commit these)
+  postgres/       GENERATED Postgres schema + migrations for the live site (don't edit by hand)
   seed.ts         SAMPLE restaurants + test logins
   removeSamples.ts  Deletes all sample data (npm run db:remove-samples)
 .env.example      Template for your local .env
@@ -270,3 +280,11 @@ Each item was checked by automated browser tests (Playwright) against a producti
 
 Real payments (see `// TODO: payments` in `app/api/group-orders/[id]/submit/route.ts`), driver dispatch, notifications,
 reviews, paid map APIs/address autocomplete, native apps, an admin panel, and per-restaurant time zones.
+
+## Changing the database schema
+
+1. Edit `prisma/schema.prisma` (the only schema file you edit).
+2. Run `npm run db:migrate` for your local SQLite database.
+3. Run `npm run db:pg:migration -- <short_name>` to create the Postgres migration for the live site.
+4. Run `npm test`. A test fails if step 3 was forgotten.
+5. Commit both `prisma/migrations/` and `prisma/postgres/`.

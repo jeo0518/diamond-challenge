@@ -4,6 +4,7 @@
 import { useState } from "react";
 import ItemEditor, { type ItemData } from "@/components/owner/ItemEditor";
 import { Card, SaveStatus, inputClass, useSave } from "@/components/owner/ui";
+import { useHydrated } from "@/components/useHydrated";
 import { formatCents, formatDelta } from "@/lib/format";
 
 export type MenuCategoryData = {
@@ -18,6 +19,7 @@ export default function MenuManager({ categories }: { categories: MenuCategoryDa
   const [renaming, setRenaming] = useState<string | null>(null);
   const [newCategory, setNewCategory] = useState("");
   const { save, state } = useSave();
+  const hydrated = useHydrated();
   const categoryChoices = categories.map((c) => ({ id: c.id, name: c.name }));
 
   async function addCategory(e: React.FormEvent) {
@@ -139,7 +141,7 @@ export default function MenuManager({ categories }: { categories: MenuCategoryDa
       <Card title="Add a category">
         <form onSubmit={addCategory} className="flex gap-2">
           <input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} required maxLength={60} placeholder="e.g. Drinks" className={inputClass} />
-          <button className="shrink-0 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700">Add</button>
+          <button disabled={!hydrated} className="shrink-0 rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-50">Add</button>
         </form>
       </Card>
     </div>

@@ -181,6 +181,7 @@ To wipe the whole database and start over: `npx prisma migrate reset`.
 | `Module not found: Can't resolve 'next-auth/react'` (or another package) | New packages were added. Stop the dev server, run `npm install`, start it again. |
 | `PrismaClientValidationError` / `Unknown argument` | The database changed. Stop the dev server, run `npm run db:migrate` (or `npx prisma generate`), start it again. |
 | No restaurants in search | Samples sit around `DEFAULT_LAT`/`DEFAULT_LNG`. Type `78701` in the ZIP box, or set your own coordinates in `.env` and run `npm run db:seed`. |
+| `[next-auth][warn][NEXTAUTH_URL]` in the terminal | Harmless during local development. Before deploying, add `NEXTAUTH_URL="https://your-site"` to `.env`. |
 | `database is locked` | Close any SQLite viewer that has `prisma/dev.db` open, then retry. |
 
 **After every `git pull`:** stop the dev server → `npm install` → `npm run db:migrate` → `npm run dev`.

@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useHydrated } from "@/components/useHydrated";
 import { HOME_FOR_ROLE, LOGIN_FOR_ROLE, type Role } from "@/lib/roles";
 
 type Props = { mode: "login" | "signup"; role: Role };
@@ -21,6 +22,7 @@ export default function AuthForm({ mode, role }: Props) {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const hydrated = useHydrated();
 
   const isOwner = role === "OWNER";
   const isSignup = mode === "signup";
@@ -125,7 +127,7 @@ export default function AuthForm({ mode, role }: Props) {
 
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || !hydrated}
           className="w-full rounded-lg bg-orange-600 px-4 py-2.5 font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
         >
           {busy ? "Please wait…" : isSignup ? "Sign up" : "Log in"}

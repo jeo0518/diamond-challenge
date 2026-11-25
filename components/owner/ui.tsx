@@ -3,6 +3,7 @@
 // Small building blocks shared by the owner forms.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHydrated } from "@/components/useHydrated";
 
 export const inputClass =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:bg-gray-100";
@@ -107,8 +108,9 @@ export function SaveStatus({ state }: { state: SaveState }) {
 }
 
 export function SaveButton({ saving, children = "Save changes" }: { saving: boolean; children?: React.ReactNode }) {
+  const hydrated = useHydrated();
   return (
-    <button type="submit" disabled={saving} className="rounded-lg bg-orange-600 px-5 py-2.5 font-semibold text-white hover:bg-orange-700 disabled:opacity-60">
+    <button type="submit" disabled={saving || !hydrated} className="rounded-lg bg-orange-600 px-5 py-2.5 font-semibold text-white hover:bg-orange-700 disabled:opacity-60">
       {saving ? "Saving…" : children}
     </button>
   );

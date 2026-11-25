@@ -3,6 +3,7 @@
 // "Start Group Order" form: event name, time slot, pickup/delivery, headcount, deadline.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHydrated } from "@/components/useHydrated";
 
 type SlotOption = { iso: string; time: string; remaining: number };
 type Props = {
@@ -37,6 +38,7 @@ export default function StartGroupOrderForm(props: Props) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const hydrated = useHydrated();
 
   // Latest allowed deadline = pickup time minus the restaurant's lead time.
   function defaultDeadline(iso: string) {
@@ -184,7 +186,7 @@ export default function StartGroupOrderForm(props: Props) {
 
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      <button type="submit" disabled={saving} className="w-full rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700 disabled:opacity-60 sm:w-auto">
+      <button type="submit" disabled={saving || !hydrated} className="w-full rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700 disabled:opacity-60 sm:w-auto">
         {saving ? "Starting…" : "Start group order"}
       </button>
     </form>

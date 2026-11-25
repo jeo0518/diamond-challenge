@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/session";
 import { haversineMiles, isValidLatLng } from "@/lib/geo";
 import { lookupPlace } from "@/lib/zipLookup";
-import { showSampleRestaurants } from "@/lib/restaurantSearch";
+import { isVisibleToCustomers } from "@/lib/visibility";
+import { isAdmin } from "@/lib/admin";
 import { DAY_NAMES, formatCents, formatDelta, formatLeadTime, formatMiles, formatTime } from "@/lib/format";
 import SampleBadge from "@/components/SampleBadge";
 
@@ -38,8 +39,6 @@ async function loadRestaurant(id: string) {
       timeSlotRules: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] },
     },
   });
-  // Hidden samples behave as if they don't exist.
-  if (!restaurant || (restaurant.isSample && !showSampleRestaurants())) return null;
   return restaurant;
 }
 
@@ -50,10 +49,13 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function RestaurantDetailPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
-  await requireRole("CUSTOMER");
+  const user = await requireRole("CUSTOMER");
   const { id } = await params;
   const restaurant = await loadRestaurant(id);
-  if (!restaurant) notFound();
+  // Unapproved (or hidden sample) restaurants act as if they don't exist — except admins get a preview.
+  const visible = restaurant ? isVisibleToCustomers(restaurant) : false;
+  const adminPreview = !visible && isAdmin(user);
+  if (!restaurant || (!visible && !adminPreview)) notFound();
 
   // Distance, if the search page passed along a location.
   const sp = await searchParams;
@@ -83,6 +85,13 @@ export default async function RestaurantDetailPage({ params, searchParams }: { p
         ← Back to search
       </Link>
 
+      {adminPreview && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <b>Admin preview.</b> Customers can&apos;t see this restaurant until it&apos;s approved on{" "}
+          <Link href="/admin/restaurants" className="font-semibold underline">Admin → Restaurants</Link>.
+        </p>
+      )}
+
       {/* Header */}
       <section className="space-y-2 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
         {restaurant.isSample && <SampleBadge />}
@@ -98,7 +107,7 @@ export default async function RestaurantDetailPage({ params, searchParams }: { p
         </p>
 
         <div className="pt-2">
-          {restaurant.acceptsGroupOrders ? (
+          {adminPreview ? null : restaurant.acceptsGroupOrders ? (
             <Link
               href={`/restaurants/${restaurant.id}/start`}
               className="block w-full rounded-lg bg-orange-600 px-5 py-3 text-center font-semibold text-white hover:bg-orange-700 sm:inline-block sm:w-auto"

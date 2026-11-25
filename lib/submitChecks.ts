@@ -4,6 +4,7 @@
 export type SubmitCheckInput = {
   status: string;
   acceptsGroupOrders: boolean;
+  restaurantVisible: boolean; // approved (and not a hidden sample)
   totalQty: number;
   minGroupSize: number;
   maxGroupSize: number | null;
@@ -17,7 +18,8 @@ export type SubmitCheckInput = {
 export function submitProblems(input: SubmitCheckInput): string[] {
   const problems: string[] = [];
   if (input.status !== "COLLECTING") return ["This order has already been submitted or closed."];
-  if (!input.acceptsGroupOrders) problems.push("This restaurant isn't taking group orders right now.");
+  if (!input.restaurantVisible) problems.push("This restaurant isn't available on GroupGrub right now.");
+  else if (!input.acceptsGroupOrders) problems.push("This restaurant isn't taking group orders right now.");
   if (input.totalQty === 0) problems.push("Add some items first.");
   else if (input.totalQty < input.minGroupSize) {
     problems.push(`The restaurant needs at least ${input.minGroupSize} items. You have ${input.totalQty}.`);

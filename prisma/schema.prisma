@@ -67,6 +67,11 @@ model Restaurant {
   // Made-up test restaurants. Seeded ones are always true. See spec Section 5.
   isSample Boolean @default(false)
 
+  // Approval (added): new restaurants are hidden from customers until an admin
+  // (an email listed in ADMIN_EMAILS) approves them on /admin/restaurants.
+  isApproved Boolean   @default(false)
+  approvedAt DateTime?
+
   // Group order rules (spec 7.4)
   acceptsGroupOrders  Boolean @default(true)
   minGroupSize        Int     @default(10) // in items

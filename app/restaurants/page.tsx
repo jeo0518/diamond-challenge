@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/session";
 import { isValidLatLng, type LatLng } from "@/lib/geo";
 import { lookupPlace, KNOWN_PLACE_EXAMPLES } from "@/lib/zipLookup";
 import { defaultCenter, searchRestaurants, showSampleRestaurants } from "@/lib/restaurantSearch";
+import { customerVisibleWhere } from "@/lib/visibility";
 import LocationBar from "@/components/LocationBar";
 import RestaurantCard from "@/components/RestaurantCard";
 
@@ -61,7 +62,7 @@ export default async function RestaurantsPage({ searchParams }: { searchParams: 
 
   const showSamples = showSampleRestaurants();
   const restaurants = await prisma.restaurant.findMany({
-    where: showSamples ? {} : { isSample: false },
+    where: customerVisibleWhere(), // approved restaurants only (and samples only if shown)
     select: {
       id: true, name: true, cuisine: true, lat: true, lng: true, isSample: true,
       acceptsGroupOrders: true, minGroupSize: true, maxGroupSize: true,

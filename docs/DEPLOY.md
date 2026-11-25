@@ -72,6 +72,7 @@ Copy the output. This becomes `AUTH_SECRET`. It's different from the one in your
    | `DEFAULT_LAT` | latitude of your town center (e.g. `30.2672`) |
    | `DEFAULT_LNG` | longitude of your town center (e.g. `-97.7431`) |
    | `SHOW_SAMPLE_RESTAURANTS` | `false` |
+   | `ADMIN_EMAILS` | the email(s) allowed to approve restaurants, comma-separated, e.g. `advisor@school.org,you@gmail.com`. Use emails you'll sign up with as **customers**. |
 
 6. Click **Deploy**. The first build takes a few minutes. It also creates all the database tables on Neon.
 
@@ -91,9 +92,10 @@ Copy the output. This becomes `AUTH_SECRET`. It's different from the one in your
 1. Open the site. The landing page should load.
 2. **Sign up as a customer** with your own email. You should land on "Find a restaurant", which will be empty because there are no restaurants yet.
 3. In a private window, **sign up as an owner** and create a test restaurant called `[TEST] Our Team Kitchen`.
-   Add a menu item and a time slot, then check you can find it as the customer and start an order.
-4. When you're done testing, go to **Settings** on the test restaurant and turn off **Accepting group orders**.
-   That hides it from search. (Deleting restaurants isn't built yet.)
+   Add a menu item and a time slot. You'll see a "Waiting for approval" banner, and the customer **can't** find it yet.
+4. As the customer (your email must be in `ADMIN_EMAILS`), click **Admin** in the top bar, then **Preview**, then **Approve**.
+   Now the customer can find it and start an order.
+5. When you're done testing, click **Hide** next to it on the Admin page. (Deleting restaurants isn't built yet.)
 
 The live site **never** has sample restaurants. Don't run `npm run db:seed` against the live database.
 
@@ -144,9 +146,9 @@ Follow "Asking restaurants" and "How they join" in the README. Sit with the owne
 
 ## Before you announce it publicly
 
-Right now, **anyone** can sign up as a restaurant owner and appear in search. Before sharing the link widely,
-add a "restaurants must be approved first" step (planned next). Also add a short terms and privacy page,
-including a note that restaurants are responsible for their allergy and ingredient information.
+New restaurants stay hidden until someone in `ADMIN_EMAILS` approves them on **Admin → Restaurants**, so only
+approve businesses you've actually talked to. Also add a short terms and privacy page, including a note that
+restaurants are responsible for their allergy and ingredient information.
 
 Back up the database now and then. Neon keeps some history on the free plan, and you can also download a full copy:
 

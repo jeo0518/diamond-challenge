@@ -9,7 +9,7 @@ import { buildTimeline } from "@/lib/timeline";
 import { canTransition, ACTIVE_STATUSES, STATUS_COLORS, STATUS_LABELS } from "@/lib/orderStatus";
 import { describeOptions, lineUnitPrice, readOptions } from "@/lib/orderLines";
 import { formatCents, formatDateTime } from "@/lib/format";
-import { showSampleRestaurants } from "@/lib/restaurantSearch";
+import { isVisibleToCustomers } from "@/lib/visibility";
 import SampleBadge from "@/components/SampleBadge";
 import StatusTimeline from "@/components/StatusTimeline";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -40,7 +40,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const collecting = order.status === "COLLECTING";
   const canCancel = canTransition(order.status, "CANCELLED");
-  const canReorder = restaurant.acceptsGroupOrders && (!restaurant.isSample || showSampleRestaurants()) && order.lines.length > 0;
+  const canReorder = restaurant.acceptsGroupOrders && isVisibleToCustomers(restaurant) && order.lines.length > 0;
   const money = orderMoney(order);
   const neverPriced = !collecting && !order.submittedAt; // cancelled before it was sent
   const live = ACTIVE_STATUSES.includes(order.status) && !collecting;

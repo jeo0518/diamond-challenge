@@ -9,6 +9,8 @@ import { HOME_FOR_ROLE, LOGIN_FOR_ROLE, type Role } from "@/lib/roles";
 
 const AUTH_PAGES = ["/login", "/signup", "/owner/login", "/owner/signup"];
 const CUSTOMER_PAGES = ["/restaurants", "/orders", "/group"];
+// Admin pages: any logged-in user may try; the page itself checks ADMIN_EMAILS (lib/admin.ts).
+const ADMIN_PAGES = ["/admin"];
 
 const startsWithAny = (path: string, prefixes: string[]) =>
   prefixes.some((p) => path === p || path.startsWith(p + "/"));
@@ -27,6 +29,11 @@ export async function middleware(request: NextRequest) {
   // Already logged in? Skip the login/sign-up pages.
   if (AUTH_PAGES.includes(pathname)) {
     return role ? goTo(HOME_FOR_ROLE[role]) : NextResponse.next();
+  }
+
+  // Admin area: must be logged in (which emails are admins is checked on the page).
+  if (startsWithAny(pathname, ADMIN_PAGES)) {
+    return role ? NextResponse.next() : goTo(LOGIN_FOR_ROLE.CUSTOMER, true);
   }
 
   // Owner-only area.
@@ -53,5 +60,6 @@ export const config = {
     "/restaurants/:path*",
     "/orders/:path*",
     "/group/:path*",
+    "/admin/:path*",
   ],
 };

@@ -6,6 +6,7 @@ import { changeStatus, countOrdersInSlot, loadOrganizerOrder } from "@/lib/group
 import { priceGroupOrder } from "@/lib/groupOrderPricing";
 import { submitProblems } from "@/lib/submitChecks";
 import { isSlotTime } from "@/lib/timeSlots";
+import { isVisibleToCustomers } from "@/lib/visibility";
 import { wallClock } from "@/lib/timezone";
 import { requireRoleApi } from "@/lib/session";
 
@@ -32,6 +33,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const problems = submitProblems({
     status: order.status,
     acceptsGroupOrders: restaurant.acceptsGroupOrders,
+    restaurantVisible: isVisibleToCustomers(restaurant),
     totalQty: price.totalQty,
     minGroupSize: restaurant.minGroupSize,
     maxGroupSize: restaurant.maxGroupSize,

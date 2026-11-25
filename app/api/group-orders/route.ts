@@ -9,7 +9,7 @@ import { copyLinesToCurrentMenu } from "@/lib/reorder";
 import { makeShareCode } from "@/lib/shareCode";
 import { haversineMiles, isValidLatLng } from "@/lib/geo";
 import { lookupPlace } from "@/lib/zipLookup";
-import { showSampleRestaurants } from "@/lib/restaurantSearch";
+import { isVisibleToCustomers } from "@/lib/visibility";
 
 const error = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 
@@ -22,8 +22,26 @@ export async function POST(request: Request) {
   const input = parsed.data;
 
   const restaurant = await prisma.restaurant.findUnique({ where: { id: input.restaurantId } });
-  if (!restaurant || (restaurant.isSample && !showSampleRestaurants())) return error("Restaurant not found.", 404);
+  if (!restaurant || !isVisibleToCustomers(restaurant)) return error("Restaurant not found.", 404);
   if (!restaurant.acceptsGroupOrders) return error("This restaurant isn't taking group orders right now.");
+
+  // Reorder: load the earlier order's lines (only if it's this organizer's order at this restaurant).
+  // Checked early, so someone else's order id always gets a plain "not found".
+  let copied: ReturnType<typeof copyLinesToCurrentMenu> = { copied: [], skipped: [] };
+  let reorderNote: string | null = null;
+  if (input.reorderFromId) {
+    const source = await prisma.groupOrder.findFirst({
+      where: { id: input.reorderFromId, organizerId: auth.user.id, restaurantId: restaurant.id },
+      include: { lines: { orderBy: { createdAt: "asc" } } },
+    });
+    if (!source) return error("The order to copy wasn't found.", 404);
+    const items = await prisma.menuItem.findMany({
+      where: { restaurantId: restaurant.id, id: { in: source.lines.map((l) => l.menuItemId) }, category: { isDeleted: false } },
+      include: { optionGroups: { include: { options: true } } },
+    });
+    copied = copyLinesToCurrentMenu(source.lines, new Map(items.map((i) => [i.id, i])));
+    reorderNote = `Reordered from "${source.eventName}"`;
+  }
 
   // Pickup or delivery must be something the restaurant offers.
   if (input.fulfillment === "PICKUP" && !restaurant.allowsPickup) return error("This restaurant doesn't offer pickup.");
@@ -59,23 +77,6 @@ export async function POST(request: Request) {
   if (input.participantDeadline <= now) return error("The deadline for adding items must be in the future.");
   if (input.participantDeadline > latestDeadline) {
     return error(`The deadline must be at least ${restaurant.leadTimeHours} hours before pickup/delivery, so there's time to submit.`);
-  }
-
-  // Reorder: load the earlier order's lines (only if it's this organizer's order at this restaurant).
-  let copied: ReturnType<typeof copyLinesToCurrentMenu> = { copied: [], skipped: [] };
-  let reorderNote: string | null = null;
-  if (input.reorderFromId) {
-    const source = await prisma.groupOrder.findFirst({
-      where: { id: input.reorderFromId, organizerId: auth.user.id, restaurantId: restaurant.id },
-      include: { lines: { orderBy: { createdAt: "asc" } } },
-    });
-    if (!source) return error("The order to copy wasn't found.", 404);
-    const items = await prisma.menuItem.findMany({
-      where: { restaurantId: restaurant.id, id: { in: source.lines.map((l) => l.menuItemId) }, category: { isDeleted: false } },
-      include: { optionGroups: { include: { options: true } } },
-    });
-    copied = copyLinesToCurrentMenu(source.lines, new Map(items.map((i) => [i.id, i])));
-    reorderNote = `Reordered from "${source.eventName}"`;
   }
 
   // One token per person, so each person's copied items stay together.

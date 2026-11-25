@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/session";
-import { showSampleRestaurants } from "@/lib/restaurantSearch";
+import { isVisibleToCustomers } from "@/lib/visibility";
 import { availableSlots } from "@/lib/groupOrders";
 import { formatClock, formatDay, formatLeadTime } from "@/lib/format";
 import { appTimeZone, toLocalDateTimeInput } from "@/lib/timezone";
@@ -24,7 +24,7 @@ export default async function StartGroupOrderPage({
   const { id } = await params;
   const { reorder: reorderId } = await searchParams;
   const restaurant = await prisma.restaurant.findUnique({ where: { id } });
-  if (!restaurant || (restaurant.isSample && !showSampleRestaurants())) notFound();
+  if (!restaurant || !isVisibleToCustomers(restaurant)) notFound();
 
   // Reorder: pre-fill from the organizer's own earlier order at this restaurant.
   const source = reorderId

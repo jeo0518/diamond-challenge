@@ -5,6 +5,7 @@ const now = new Date(2026, 10, 11, 9, 0);
 const ok: SubmitCheckInput = {
   status: "COLLECTING",
   acceptsGroupOrders: true,
+  restaurantVisible: true,
   totalQty: 20,
   minGroupSize: 10,
   maxGroupSize: 100,
@@ -32,6 +33,10 @@ describe("submitProblems", () => {
 
   it("refuses orders that aren't collecting", () => {
     expect(submitProblems({ ...ok, status: "SUBMITTED" })).toHaveLength(1);
+  });
+
+  it("refuses restaurants that were hidden (not approved) after the order started", () => {
+    expect(submitProblems({ ...ok, restaurantVisible: false })[0]).toContain("isn't available");
   });
 
   it("reports empty orders, unavailable items, and full slots", () => {

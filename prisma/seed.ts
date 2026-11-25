@@ -506,6 +506,8 @@ async function main() {
       data: {
         ownerId: owner.id,
         isSample: true,
+        isApproved: true, // samples are pre-approved so they show up while testing
+        approvedAt: new Date(),
         name: r.name,
         description: r.description,
         cuisine: r.cuisine,

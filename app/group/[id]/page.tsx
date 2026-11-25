@@ -13,6 +13,7 @@ import { formatCents, formatDateTime } from "@/lib/format";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/orderStatus";
 import { prisma } from "@/lib/db";
 import { isSlotTime } from "@/lib/timeSlots";
+import { isVisibleToCustomers } from "@/lib/visibility";
 import { wallClock } from "@/lib/timezone";
 import SampleBadge from "@/components/SampleBadge";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -52,6 +53,7 @@ export default async function GroupOrderPage({
   const problems = submitProblems({
     status: order.status,
     acceptsGroupOrders: restaurant.acceptsGroupOrders,
+    restaurantVisible: isVisibleToCustomers(restaurant),
     totalQty: price.totalQty,
     minGroupSize: restaurant.minGroupSize,
     maxGroupSize: restaurant.maxGroupSize,

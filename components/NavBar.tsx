@@ -6,6 +6,7 @@ import LogoutButton from "@/components/LogoutButton";
 import NewOrdersBadge from "@/components/owner/NewOrdersBadge";
 import { findOwnerRestaurant } from "@/lib/owner";
 import { countNewOrders } from "@/lib/ownerOrders";
+import { isAdmin } from "@/lib/admin";
 
 const CUSTOMER_LINKS = [
   { href: "/restaurants", label: "Restaurants" },
@@ -22,7 +23,9 @@ const OWNER_LINKS = [
 
 export default async function NavBar() {
   const user = await getCurrentUser();
-  const links = user?.role === "OWNER" ? OWNER_LINKS : user?.role === "CUSTOMER" ? CUSTOMER_LINKS : [];
+  const roleLinks = user?.role === "OWNER" ? OWNER_LINKS : user?.role === "CUSTOMER" ? CUSTOMER_LINKS : [];
+  // Admins (ADMIN_EMAILS) also get a link to approve restaurants.
+  const links = isAdmin(user) ? [...roleLinks, { href: "/admin/restaurants", label: "Admin" }] : roleLinks;
   // Owners: starting count for the new-orders badge (it then polls by itself).
   let newOrders = 0;
   if (user?.role === "OWNER") {

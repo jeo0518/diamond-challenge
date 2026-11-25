@@ -85,6 +85,18 @@ There are two separate account types with separate pages:
 - Owner API routes (`app/api/owner/...`) use `requireOwnerApi()` in `lib/owner.ts`, which only ever
   loads the caller's own restaurant, so an owner can't touch another restaurant's data.
 
+## Restaurant approval (admins)
+
+New restaurants are **hidden from customers until an admin approves them**, so nobody can add a fake restaurant.
+
+- **Admins** are the emails listed in `ADMIN_EMAILS` (in `.env` locally, in Vercel's settings online). Use **customer**
+  accounts for admins, so they can also preview restaurant pages. Locally, `customer@example.com` is an admin.
+- Admins see an **Admin** link in the nav → **`/admin/restaurants`**: restaurants waiting for approval (with the owner's
+  contact info and how many menu items and time slots they've set up), a **Preview** button, and **Approve** / **Hide**.
+- Until approved, the owner sees a "⏳ Waiting for approval" banner but can set up everything.
+- **Hiding** a restaurant removes it from search and blocks new orders; orders already sent to it continue.
+- Sample restaurants are pre-approved.
+
 ## Owner tools
 
 | Page | What owners do there |
@@ -227,6 +239,8 @@ lib/              Plain TypeScript logic: database client, pricing, distance, or
   format.ts       Money, distance, and time display helpers
   pricing.ts      Group order price calculation, spec Section 10 (+ pricing.test.ts)
   owner.ts        Owner page/API helpers (role + "your own restaurant" checks)
+  admin.ts        ADMIN_EMAILS checks for /admin pages (+ test)
+  visibility.ts   Which restaurants customers may see (approved + sample setting)
   validation/     Zod schemas for every form and API input
   timezone.ts     All date math in APP_TIME_ZONE, not the server's clock (+ test)
   postgresSchema.ts  Builds the Postgres schema from the SQLite one (+ sync test)

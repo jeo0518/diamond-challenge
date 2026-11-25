@@ -31,6 +31,15 @@ export default function LocationBar({ centerLabel, source, placeError }: Props) 
     router.replace(`${pathname}?${params.toString()}`);
   }
 
+  // Remember (for this browser session) that the browser already answered, so we don't keep asking.
+  function rememberAnswered() {
+    try {
+      sessionStorage.setItem(ASKED_KEY, "1");
+    } catch {
+      // Storage blocked (private mode) — fine, we may just ask again later.
+    }
+  }
+
   function askForLocation() {
     if (!("geolocation" in navigator)) {
       setStatus("unsupported");
@@ -39,25 +48,30 @@ export default function LocationBar({ centerLabel, source, placeError }: Props) 
     setStatus("asking");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        rememberAnswered();
         setStatus("idle");
         goToCoords(pos.coords.latitude, pos.coords.longitude);
       },
-      () => setStatus("denied"), // denied, timed out, or unavailable
+      () => {
+        rememberAnswered();
+        setStatus("denied"); // denied, timed out, or unavailable
+      },
       { timeout: 10000, maximumAge: 5 * 60 * 1000 },
     );
   }
 
   // On first visit (no location chosen yet), ask the browser once per browser session.
+  // We only mark it "asked" after the browser answers, so if this page re-renders
+  // while the question is pending (e.g. right after logging in), we simply ask again.
   useEffect(() => {
     if (source !== "default") return;
-    let alreadyAsked = false;
+    let alreadyAnswered = false;
     try {
-      alreadyAsked = sessionStorage.getItem(ASKED_KEY) === "1";
-      sessionStorage.setItem(ASKED_KEY, "1");
+      alreadyAnswered = sessionStorage.getItem(ASKED_KEY) === "1";
     } catch {
       // Storage can be blocked (private mode). Just ask anyway.
     }
-    if (!alreadyAsked) askForLocation();
+    if (!alreadyAnswered) askForLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on load
   }, []);
 

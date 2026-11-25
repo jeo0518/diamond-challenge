@@ -252,7 +252,7 @@ prisma/
 6. ✅ Group ordering — share link, participant entry, pricing, submit
 7. ✅ Owner order management — dashboard, kitchen summary, status actions
 8. ✅ Order history — list, timeline, reorder, cancel
-9. ✅ Polish — loading/error/404 screens, phone layouts, tests, printable summary + split cost
+9. ✅ Polish — error and 404 screens, phone layouts, tests, printable summary + split cost
 
 ## Definition of Done (v0.1)
 

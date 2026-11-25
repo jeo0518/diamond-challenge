@@ -6,6 +6,7 @@ import { changeStatus, countOrdersInSlot, loadOrganizerOrder } from "@/lib/group
 import { priceGroupOrder } from "@/lib/groupOrderPricing";
 import { submitProblems } from "@/lib/submitChecks";
 import { isSlotTime } from "@/lib/timeSlots";
+import { wallClock } from "@/lib/timezone";
 import { requireRoleApi } from "@/lib/session";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   // Capacity: other active orders in the same slot (this order already holds one place).
   const dayRules = await prisma.timeSlotRule.findMany({
-    where: { restaurantId: restaurant.id, dayOfWeek: order.scheduledFor.getDay() },
+    where: { restaurantId: restaurant.id, dayOfWeek: wallClock(order.scheduledFor).weekday },
   });
   const coveringRules = dayRules.filter((r) => isSlotTime([r], order.scheduledFor));
   const capacity = Math.max(0, ...coveringRules.map((r) => r.maxOrdersPerSlot));

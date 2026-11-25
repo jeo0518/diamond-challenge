@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/session";
 import { showSampleRestaurants } from "@/lib/restaurantSearch";
 import { availableSlots } from "@/lib/groupOrders";
 import { formatClock, formatDay, formatLeadTime } from "@/lib/format";
+import { appTimeZone, toLocalDateTimeInput } from "@/lib/timezone";
 import SampleBadge from "@/components/SampleBadge";
 import StartGroupOrderForm from "@/components/group/StartGroupOrderForm";
 
@@ -35,11 +36,16 @@ export default async function StartGroupOrderPage({
 
   // Group slots by day for the dropdown. Times are formatted here (server time zone).
   const slots = await availableSlots(restaurant);
-  const slotsByDay: { day: string; slots: { iso: string; time: string; remaining: number }[] }[] = [];
+  const slotsByDay: { day: string; slots: { iso: string; time: string; remaining: number; latestDeadline: string }[] }[] = [];
   for (const s of slots) {
     const day = formatDay(s.time);
     if (slotsByDay.at(-1)?.day !== day) slotsByDay.push({ day, slots: [] });
-    slotsByDay.at(-1)!.slots.push({ iso: s.time.toISOString(), time: formatClock(s.time), remaining: s.remaining });
+    slotsByDay.at(-1)!.slots.push({
+      iso: s.time.toISOString(),
+      time: formatClock(s.time),
+      remaining: s.remaining,
+      latestDeadline: toLocalDateTimeInput(new Date(s.time.getTime() - restaurant.leadTimeHours * 3600_000)),
+    });
   }
 
   return (
@@ -69,6 +75,7 @@ export default async function StartGroupOrderPage({
           allowsDelivery={restaurant.allowsDelivery}
           deliveryRadiusMiles={restaurant.deliveryRadiusMiles}
           leadTimeHours={restaurant.leadTimeHours}
+          timeZoneLabel={timeZoneLabel()}
           slotsByDay={slotsByDay}
           reorder={
             source
@@ -88,4 +95,12 @@ export default async function StartGroupOrderPage({
       </p>
     </div>
   );
+}
+
+/** "Central Time" style name for the app's time zone, shown on the form. */
+function timeZoneLabel() {
+  const name = new Intl.DateTimeFormat("en-US", { timeZone: appTimeZone(), timeZoneName: "long" })
+    .formatToParts(new Date())
+    .find((p) => p.type === "timeZoneName")?.value;
+  return name ? name.replace(/ (Standard|Daylight) /, " ") : appTimeZone();
 }

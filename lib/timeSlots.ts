@@ -1,8 +1,7 @@
 // Turns a restaurant's weekly time slot rules into concrete bookable times.
-//
-// v0.1 note: slot times like "16:00" are read in the SERVER's time zone.
-// That's fine when everyone runs the app on one computer in one place.
-// TODO: store a time zone per restaurant before supporting multiple regions.
+// Slot times like "16:00" are in the app's time zone (APP_TIME_ZONE in .env),
+// NOT the server's — hosting servers usually run on UTC.
+import { appTimeZone, wallClock, zonedTime } from "@/lib/timezone";
 
 export type SlotRule = {
   dayOfWeek: number; // 0 = Sunday
@@ -30,16 +29,19 @@ export function listSlots(
   taken: Map<string, number>,
   now: Date,
   days = 14,
+  tz = appTimeZone(),
 ): Slot[] {
   const earliest = now.getTime() + leadTimeHours * 60 * 60 * 1000;
   const slots = new Map<string, Slot>(); // keyed by ISO time, in case two rules overlap
 
+  const today = wallClock(now, tz); // today's date where the restaurants are
   for (let d = 0; d <= days; d++) {
-    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
-    for (const rule of rules.filter((r) => r.dayOfWeek === day.getDay())) {
+    // Noon on that calendar day tells us its weekday (noon avoids daylight-saving edges).
+    const weekday = wallClock(zonedTime(today.year, today.month, today.day + d, 12, 0, tz), tz).weekday;
+    for (const rule of rules.filter((r) => r.dayOfWeek === weekday)) {
       // A slot starts every `slotMinutes`, and must start before the window ends.
       for (let m = toMinutes(rule.startTime); m < toMinutes(rule.endTime); m += rule.slotMinutes) {
-        const time = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(m / 60), m % 60);
+        const time = zonedTime(today.year, today.month, today.day + d, Math.floor(m / 60), m % 60, tz);
         if (time.getTime() < earliest) continue;
         const key = time.toISOString();
         const remaining = Math.max(0, rule.maxOrdersPerSlot - (taken.get(key) ?? 0));
@@ -52,13 +54,14 @@ export function listSlots(
 }
 
 /** True if `time` (lead time ignored) is one of the restaurant's weekly slot start times. */
-export function isSlotTime(rules: SlotRule[], time: Date): boolean {
-  const m = time.getHours() * 60 + time.getMinutes();
+export function isSlotTime(rules: SlotRule[], time: Date, tz = appTimeZone()): boolean {
+  const w = wallClock(time, tz);
+  const m = w.hour * 60 + w.minute;
   return (
-    time.getSeconds() === 0 &&
+    time.getUTCSeconds() === 0 &&
     rules.some(
       (r) =>
-        r.dayOfWeek === time.getDay() &&
+        r.dayOfWeek === w.weekday &&
         m >= toMinutes(r.startTime) &&
         m < toMinutes(r.endTime) &&
         (m - toMinutes(r.startTime)) % r.slotMinutes === 0,

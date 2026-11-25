@@ -13,6 +13,7 @@ import { formatCents, formatDateTime } from "@/lib/format";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/orderStatus";
 import { prisma } from "@/lib/db";
 import { isSlotTime } from "@/lib/timeSlots";
+import { wallClock } from "@/lib/timezone";
 import SampleBadge from "@/components/SampleBadge";
 import AutoRefresh from "@/components/AutoRefresh";
 import CancelOrderButton from "@/components/group/CancelOrderButton";
@@ -46,7 +47,7 @@ export default async function GroupOrderPage({
   const pricedById = new Map(order.lines.map((l, i) => [l.id, price.lines[i]]));
 
   // Rule checks (the server checks again when Submit is pressed).
-  const dayRules = await prisma.timeSlotRule.findMany({ where: { restaurantId: restaurant.id, dayOfWeek: order.scheduledFor.getDay() } });
+  const dayRules = await prisma.timeSlotRule.findMany({ where: { restaurantId: restaurant.id, dayOfWeek: wallClock(order.scheduledFor).weekday } });
   const capacity = Math.max(0, ...dayRules.filter((r) => isSlotTime([r], order.scheduledFor)).map((r) => r.maxOrdersPerSlot));
   const problems = submitProblems({
     status: order.status,

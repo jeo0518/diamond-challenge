@@ -32,9 +32,13 @@ export function formatLeadTime(hours: number): string {
 
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** Date → "Fri, Nov 13, 4:30 PM" (server/browser local time). */
+// Dates are always shown in the app's time zone (APP_TIME_ZONE), not the server's.
+import { appTimeZone } from "@/lib/timezone";
+
+/** Date → "Fri, Nov 13, 4:30 PM" in the app's time zone. */
 export function formatDateTime(date: Date | string): string {
   return new Date(date).toLocaleString("en-US", {
+    timeZone: appTimeZone(),
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -45,10 +49,10 @@ export function formatDateTime(date: Date | string): string {
 
 /** Date → "Friday, Nov 13" */
 export function formatDay(date: Date | string): string {
-  return new Date(date).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  return new Date(date).toLocaleDateString("en-US", { timeZone: appTimeZone(), weekday: "long", month: "short", day: "numeric" });
 }
 
 /** Date → "4:30 PM" */
 export function formatClock(date: Date | string): string {
-  return new Date(date).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return new Date(date).toLocaleTimeString("en-US", { timeZone: appTimeZone(), hour: "numeric", minute: "2-digit" });
 }

@@ -1,12 +1,17 @@
 // Zod schemas for creating group orders and adding items.
 import { z } from "zod";
+import { parseLocalDateTime } from "@/lib/timezone";
 
-/** A date from a form: ISO string or "2026-11-13T16:00" (datetime-local). */
+/**
+ * A date from a form: a full ISO time ("2026-11-13T22:00:00.000Z"), or
+ * "2026-11-13T16:00" from <input type="datetime-local">, which means 4 PM in the app's time zone.
+ */
+const toDate = (s: string) => parseLocalDateTime(s) ?? new Date(s);
 const dateString = z
   .string()
   .max(40)
-  .refine((s) => !Number.isNaN(new Date(s).getTime()), "Invalid date.")
-  .transform((s) => new Date(s));
+  .refine((s) => !Number.isNaN(toDate(s).getTime()), "Invalid date.")
+  .transform(toDate);
 
 export const createGroupOrderSchema = z
   .object({

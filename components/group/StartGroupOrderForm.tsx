@@ -5,29 +5,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useHydrated } from "@/components/useHydrated";
 
-type SlotOption = { iso: string; time: string; remaining: number };
+// latestDeadline: "2026-11-12T16:00" in the app's time zone (pickup time minus lead time).
+type SlotOption = { iso: string; time: string; remaining: number; latestDeadline: string };
 type Props = {
   restaurantId: string;
   allowsPickup: boolean;
   allowsDelivery: boolean;
   deliveryRadiusMiles: number | null;
   leadTimeHours: number;
+  /** e.g. "Central Time" — the time zone all times on this form are in. */
+  timeZoneLabel: string;
   slotsByDay: { day: string; slots: SlotOption[] }[];
   /** Set when reordering: copy items from this order and pre-fill its details. */
   reorder?: { fromId: string; eventName: string; fulfillment: "PICKUP" | "DELIVERY"; deliveryAddress: string | null; expectedHeadcount: number | null };
 };
 
-/** Date → "2026-11-13T16:00" for <input type="datetime-local"> (local time). */
-function toLocalInput(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 const field = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2";
 
 export default function StartGroupOrderForm(props: Props) {
   const router = useRouter();
-  const firstOpen = props.slotsByDay.flatMap((d) => d.slots).find((s) => s.remaining > 0);
+  const allSlots = props.slotsByDay.flatMap((d) => d.slots);
+  const firstOpen = allSlots.find((s) => s.remaining > 0);
+  const timeZoneNote = props.timeZoneLabel;
   const [slot, setSlot] = useState(firstOpen?.iso ?? "");
   const [fulfillment, setFulfillment] = useState<"PICKUP" | "DELIVERY">(
     props.reorder && (props.reorder.fulfillment === "PICKUP" ? props.allowsPickup : props.allowsDelivery)
@@ -40,9 +39,9 @@ export default function StartGroupOrderForm(props: Props) {
   const [saving, setSaving] = useState(false);
   const hydrated = useHydrated();
 
-  // Latest allowed deadline = pickup time minus the restaurant's lead time.
+  // Latest allowed deadline = pickup time minus the restaurant's lead time (worked out on the server).
   function defaultDeadline(iso: string) {
-    return toLocalInput(new Date(new Date(iso).getTime() - props.leadTimeHours * 3600_000));
+    return allSlots.find((s) => s.iso === iso)?.latestDeadline ?? "";
   }
 
   function chooseSlot(iso: string) {
@@ -74,7 +73,7 @@ export default function StartGroupOrderForm(props: Props) {
         restaurantId: props.restaurantId,
         eventName: form.get("eventName"),
         scheduledFor: slot,
-        participantDeadline: new Date(deadline).toISOString(),
+        participantDeadline: deadline, // local time in the restaurant's time zone; the server converts it
         fulfillment,
         expectedHeadcount: headcount ? Number(headcount) : null,
         deliveryAddress: fulfillment === "DELIVERY" ? String(form.get("deliveryAddress") ?? "") || null : null,
@@ -121,7 +120,9 @@ export default function StartGroupOrderForm(props: Props) {
             </optgroup>
           ))}
         </select>
-        <span className="mt-1 block text-xs text-gray-500">Only times at least {props.leadTimeHours} hours from now are shown.</span>
+        <span className="mt-1 block text-xs text-gray-500">
+          Only times at least {props.leadTimeHours} hours from now are shown. All times are {timeZoneNote}.
+        </span>
       </label>
 
       <fieldset>

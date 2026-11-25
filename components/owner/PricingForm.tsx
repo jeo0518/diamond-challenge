@@ -92,8 +92,8 @@ export default function PricingForm(props: Props) {
   const small = "rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm";
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
-      <div className="space-y-4">
+    <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
+      <div className="min-w-0 space-y-4">
         <Card title="Bulk discount tiers">
           <p className="text-sm text-gray-500">
             Based on the <b>total number of items</b> in the group order. Only the highest tier the order reaches applies.
@@ -147,8 +147,8 @@ export default function PricingForm(props: Props) {
                 <thead>
                   <tr className="text-left text-gray-500">
                     <th className="pb-1 font-medium">Item</th>
-                    <th className="pb-1 font-medium">Menu price</th>
-                    <th className="pb-1 font-medium">Bulk price ($)</th>
+                    <th className="pb-1 pr-3 font-medium">Menu price</th>
+                    <th className="pb-1 pr-3 font-medium">Bulk price ($)</th>
                     <th className="pb-1 font-medium">When ordering</th>
                   </tr>
                 </thead>

@@ -7,7 +7,7 @@ items, and the restaurant receives one clean, scheduled bulk order.
 - Not a delivery-driver service — restaurants handle pickup or their own delivery.
 - No real payments in v0.1 — orders show a total; payment happens outside the app.
 
-> **Build status:** Milestones 1–8 (setup, sample data, login, search, owner tools, group ordering, owner order management, order history) are done. See [Milestones](#milestones) below.
+> **Build status:** v0.1 is feature-complete — all 9 milestones are done. See [Definition of Done](#definition-of-done-v01).
 
 ## Tech stack
 
@@ -32,7 +32,7 @@ No paid services or API keys are needed.
 
 2. **Clone the repo and install packages:**
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/jeo0518/diamond-challenge.git
    cd diamond-challenge
    npm install
    ```
@@ -120,6 +120,11 @@ Deleting a menu item or category only hides it (soft delete), so past orders nev
      at **today's** prices. You pick a new time. Items that were removed or whose options changed are
      skipped, and the page lists them.
 
+8. **Printable summary** (`/orders/[id]/print`, for the band director or coach): who gets what with
+   check boxes for handing out food, and **who owes what**. The **split cost** view (also on the order page)
+   gives each person a share of the total in proportion to what they ordered, so the discount and fees are
+   shared the same way, and the shares always add up to the exact total.
+
 **Testing with several "people":** open the share link in different browsers or a private/incognito window.
 Each one is a separate participant. To try it from a phone on the same Wi-Fi, run `npm run dev -- -H 0.0.0.0`
 and open `http://<your-Mac's-IP>:3000` on the phone (find the IP in System Settings → Wi-Fi → Details).
@@ -167,6 +172,25 @@ no results. Either click "Search the default area", type `78701` in the ZIP box,
 
 To wipe the whole database and start over: `npx prisma migrate reset`.
 
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `The datasource property url is no longer supported` (Prisma 7 error) | You skipped `npm install`, so `npx` downloaded Prisma 7. Run `npm install`, then `npm run db:migrate`. This project uses Prisma **6.19.3**. |
+| `npm error ERESOLVE` mentioning `prisma@7` or `vitest@5` | Your `package.json` was changed. Restore it: `git checkout -- package.json package-lock.json`, then `rm -rf node_modules` and `npm install`. Don't use `--force`. |
+| `Module not found: Can't resolve 'next-auth/react'` (or another package) | New packages were added. Stop the dev server, run `npm install`, start it again. |
+| `PrismaClientValidationError` / `Unknown argument` | The database changed. Stop the dev server, run `npm run db:migrate` (or `npx prisma generate`), start it again. |
+| No restaurants in search | Samples sit around `DEFAULT_LAT`/`DEFAULT_LNG`. Type `78701` in the ZIP box, or set your own coordinates in `.env` and run `npm run db:seed`. |
+| `database is locked` | Close any SQLite viewer that has `prisma/dev.db` open, then retry. |
+
+**After every `git pull`:** stop the dev server → `npm install` → `npm run db:migrate` → `npm run dev`.
+
+## Viewing the database
+
+- `npm run db:studio` opens Prisma Studio at http://localhost:5555.
+- Or open `prisma/dev.db` with a free SQLite app (DB Browser for SQLite, TablePlus, or the VS Code "SQLite Viewer" extension).
+  Money is stored in cents (`1800` = $18.00).
+
 ## Useful commands
 
 | Command | What it does |
@@ -174,7 +198,7 @@ To wipe the whole database and start over: `npx prisma migrate reset`.
 | `npm run dev` | Start the dev server at localhost:3000 |
 | `npm run build` | Production build (also type-checks) |
 | `npm run lint` | Lint the code |
-| `npm test` | Run unit tests |
+| `npm test` | Run the unit tests (pricing, distance, status transitions, time slots, and more) |
 | `npm run db:migrate` | Apply database schema changes |
 | `npm run db:seed` | Load the SAMPLE restaurants and test logins |
 | `npm run db:remove-samples` | Delete all SAMPLE restaurants, their data, and sample accounts |
@@ -227,4 +251,21 @@ prisma/
 6. ✅ Group ordering — share link, participant entry, pricing, submit
 7. ✅ Owner order management — dashboard, kitchen summary, status actions
 8. ✅ Order history — list, timeline, reorder, cancel
-9. ⬜ Polish — loading/error states, mobile layout, tests
+9. ✅ Polish — loading/error/404 screens, phone layouts, tests, printable summary + split cost
+
+## Definition of Done (v0.1)
+
+Each item was checked by automated browser tests (Playwright) against a production build, plus unit tests:
+
+- [x] Fresh clone → `npm install` → `npx prisma migrate dev` → `npm run db:seed` → `npm run dev` works by following this README.
+- [x] Every sample restaurant shows `[SAMPLE]` in its name and the yellow SAMPLE badge on cards, detail pages, and order screens.
+- [x] A customer finds nearby restaurants, starts a group order, shares the link, 3 participants add items in different browsers, and the order is submitted.
+- [x] The owner sees the order with per-participant and kitchen-summary views and moves it through Accept → Preparing → Ready → Completed.
+- [x] The customer sees status changes and the order in their history, and can reorder.
+- [x] Customers can't reach owner pages; owners can't see other restaurants' data (pages show 404, APIs return 403/404).
+- [x] Pricing, distance, and status-transition unit tests pass (`npm test`).
+
+## Not in v0.1 (on purpose)
+
+Real payments (see `// TODO: payments` in `app/api/group-orders/[id]/submit/route.ts`), driver dispatch, notifications,
+reviews, paid map APIs/address autocomplete, native apps, an admin panel, and per-restaurant time zones.

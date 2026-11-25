@@ -33,7 +33,7 @@ export default async function NavBar() {
   const homeHref = user?.role === "OWNER" ? "/owner/dashboard" : user ? "/restaurants" : "/";
 
   return (
-    <header className="border-b border-gray-200 bg-white">
+    <header className="border-b border-gray-200 bg-white print:hidden">
       <nav className="mx-auto max-w-5xl px-4">
         <div className="flex h-14 items-center justify-between gap-3">
           <Link href={homeHref} className="shrink-0 text-lg font-bold text-orange-600">

@@ -14,6 +14,8 @@ import SampleBadge from "@/components/SampleBadge";
 import StatusTimeline from "@/components/StatusTimeline";
 import AutoRefresh from "@/components/AutoRefresh";
 import CancelOrderButton from "@/components/group/CancelOrderButton";
+import SplitCostTable from "@/components/SplitCostTable";
+import { orderMoney } from "@/lib/groupOrderPricing";
 
 export const metadata: Metadata = { title: "Order — GroupGrub" };
 
@@ -23,8 +25,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const order = await prisma.groupOrder.findFirst({
     where: { id, organizerId: user.id }, // only the organizer's own orders
     include: {
-      restaurant: true,
-      lines: { orderBy: [{ participantName: "asc" }, { createdAt: "asc" }] },
+      restaurant: { include: { discountTiers: true } },
+      lines: { orderBy: [{ participantName: "asc" }, { createdAt: "asc" }], include: { menuItem: true } },
       statusEvents: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -39,6 +41,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const collecting = order.status === "COLLECTING";
   const canCancel = canTransition(order.status, "CANCELLED");
   const canReorder = restaurant.acceptsGroupOrders && (!restaurant.isSample || showSampleRestaurants()) && order.lines.length > 0;
+  const money = orderMoney(order);
+  const neverPriced = !collecting && !order.submittedAt; // cancelled before it was sent
   const live = ACTIVE_STATUSES.includes(order.status) && !collecting;
 
   return (
@@ -74,6 +78,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         {canReorder && (
           <Link href={`/restaurants/${restaurant.id}/start?reorder=${order.id}`} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50">
             ↻ Reorder
+          </Link>
+        )}
+        {order.lines.length > 0 && (
+          <Link href={`/orders/${order.id}/print`} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50">
+            🖨️ Printable summary
           </Link>
         )}
         {canCancel && <CancelOrderButton orderId={order.id} />}
@@ -137,6 +146,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             )}
             <p className="mt-2 text-xs text-gray-500">Payment happens outside the app (e.g. at pickup).</p>
           </div>
+          {!neverPriced && order.lines.length > 0 && (
+            <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+              <h2 className="mb-2 font-bold">Split cost</h2>
+              <SplitCostTable perPerson={money.perPerson} total={money.total} isEstimate={money.isEstimate} />
+            </div>
+          )}
         </aside>
       </div>
     </div>

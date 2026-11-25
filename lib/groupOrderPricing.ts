@@ -33,3 +33,38 @@ export function priceGroupOrder(
     fulfillment,
   );
 }
+
+/**
+ * Money for an order page: frozen totals once submitted, a live estimate while collecting.
+ * Also returns each person's item total (with bulk prices) for the split-cost view.
+ */
+export function orderMoney(order: {
+  status: string;
+  submittedAt: Date | null;
+  fulfillment: Fulfillment;
+  subtotalCents: number;
+  discountCents: number;
+  feesCents: number;
+  totalCents: number;
+  lines: (Parameters<typeof priceGroupOrder>[0][number] & {
+    participantName: string;
+    menuItem: { bulkPrice: number | null; bulkMinQty: number | null };
+  })[];
+  restaurant: Parameters<typeof priceGroupOrder>[2];
+}) {
+  const bulkRules = new Map(order.lines.map((l) => [l.menuItemId, l.menuItem]));
+  const live = priceGroupOrder(order.lines, bulkRules, order.restaurant, order.fulfillment);
+  const perPerson = new Map<string, number>();
+  order.lines.forEach((l, i) => perPerson.set(l.participantName, (perPerson.get(l.participantName) ?? 0) + live.lines[i].lineTotal));
+
+  const frozen = order.submittedAt != null;
+  return {
+    isEstimate: !frozen,
+    subtotal: frozen ? order.subtotalCents : live.subtotal,
+    discount: frozen ? order.discountCents : live.discount,
+    fees: frozen ? order.feesCents : live.fees,
+    total: frozen ? order.totalCents : live.total,
+    totalQty: live.totalQty,
+    perPerson,
+  };
+}

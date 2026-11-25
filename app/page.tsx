@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/session";
 
 // Landing page: explains the app and links to customer and owner sign-up.
-export default function Home() {
+export default async function Home() {
+  // Logged-in people get a shortcut to their own home instead of the sign-up buttons.
+  const user = await getCurrentUser();
   return (
     <div className="space-y-10">
       <section className="text-center space-y-4 pt-6">
@@ -11,12 +14,23 @@ export default function Home() {
           food, and the restaurant gets a single clean, scheduled bulk order.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href="/signup" className="rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700">
-            I&apos;m organizing an order
-          </Link>
-          <Link href="/owner/signup" className="rounded-lg border border-gray-300 bg-white px-5 py-3 font-semibold hover:bg-gray-100">
-            I own a restaurant
-          </Link>
+          {user ? (
+            <Link
+              href={user.role === "OWNER" ? "/owner/dashboard" : "/restaurants"}
+              className="rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700"
+            >
+              {user.role === "OWNER" ? "Go to your orders" : "Find a restaurant"}
+            </Link>
+          ) : (
+            <>
+              <Link href="/signup" className="rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700">
+                I&apos;m organizing an order
+              </Link>
+              <Link href="/owner/signup" className="rounded-lg border border-gray-300 bg-white px-5 py-3 font-semibold hover:bg-gray-100">
+                I own a restaurant
+              </Link>
+            </>
+          )}
         </div>
       </section>
 

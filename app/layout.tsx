@@ -14,8 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen flex flex-col">
         <NavBar />
-        <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-6">{children}</main>
-        <footer className="text-center text-xs text-gray-500 py-4">
+        <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-6 print:max-w-none print:p-0">{children}</main>
+        <footer className="text-center text-xs text-gray-500 py-4 print:hidden">
           v0.1 — payments happen outside the app (e.g., paid at pickup).
         </footer>
       </body>

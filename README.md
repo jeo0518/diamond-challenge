@@ -182,6 +182,7 @@ To wipe the whole database and start over: `npx prisma migrate reset`.
 | `The datasource property url is no longer supported` (Prisma 7 error) | You skipped `npm install`, so `npx` downloaded Prisma 7. Run `npm install`, then `npm run db:migrate`. This project uses Prisma **6.19.3**. |
 | `npm error ERESOLVE` mentioning `prisma@7` or `vitest@5` | Your `package.json` was changed. Restore it: `git checkout -- package.json package-lock.json`, then `rm -rf node_modules` and `npm install`. Don't use `--force`. |
 | `Module not found: Can't resolve 'next-auth/react'` (or another package) | New packages were added. Stop the dev server, run `npm install`, start it again. |
+| `the URL must start with the protocol file:` on your Mac | Your `.env` has a Postgres address. Locally it must be `DATABASE_URL="file:./dev.db"`; the Neon address only goes into Vercel. Then run `npm install` and restart. |
 | `PrismaClientValidationError` / `Unknown argument` | The database changed. Stop the dev server, run `npm run db:migrate` (or `npx prisma generate`), start it again. |
 | No restaurants in search | Samples sit around `DEFAULT_LAT`/`DEFAULT_LNG`. Type `78701` in the ZIP box, or set your own coordinates in `.env` and run `npm run db:seed`. |
 | `[next-auth][warn][NEXTAUTH_URL]` in the terminal | Harmless during local development. Before deploying, add `NEXTAUTH_URL="https://your-site"` to `.env`. |
@@ -200,14 +201,13 @@ To wipe the whole database and start over: `npx prisma migrate reset`.
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start the dev server at localhost:3000 |
-| `npm run build` | Production build (also type-checks) |
 | `npm run lint` | Lint the code |
 | `npm test` | Run the unit tests (pricing, distance, status transitions, time slots, and more) |
 | `npm run db:migrate` | Apply database schema changes |
 | `npm run db:seed` | Load the SAMPLE restaurants and test logins |
 | `npm run db:remove-samples` | Delete all SAMPLE restaurants, their data, and sample accounts |
 | `npm run db:pg:migration -- <name>` | After a schema change: create the matching **Postgres** migration for the live site |
-| `npm run build:vercel` | What Vercel runs on deploy (Postgres client + migrations + build) |
+| `npm run build` | Production build. If `DATABASE_URL` is a Postgres address (the live site), it also applies Postgres migrations first |
 | `npm run db:studio` | Open Prisma Studio to browse the database |
 
 ## Folder structure

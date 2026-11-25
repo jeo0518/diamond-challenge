@@ -23,9 +23,10 @@ Time needed: about 30–45 minutes the first time.
 | Database | SQLite file `prisma/dev.db` | Postgres on Neon |
 | Schema file Prisma uses | `prisma/schema.prisma` | `prisma/postgres/schema.prisma` (generated, don't edit) |
 | Migrations | `prisma/migrations/` | `prisma/postgres/migrations/` |
-| Start command | `npm run dev` | Vercel runs `npm run build:vercel` |
+| Start command | `npm run dev` | Vercel runs `npm run build` |
 
-`npm run build:vercel` does three things on every deploy:
+The app picks the database by looking at `DATABASE_URL`: a `postgresql://…` address means Postgres,
+`file:./dev.db` means SQLite. When it's Postgres, `npm run build` does three things on every deploy:
 1. `prisma generate` for Postgres
 2. `prisma migrate deploy`: creates or updates the database tables
 3. `next build`
@@ -58,10 +59,8 @@ Copy the output. This becomes `AUTH_SECRET`. It's different from the one in your
 1. Go to **vercel.com** and sign up with GitHub.
 2. Click **Add New… → Project** and import the `diamond-challenge` repository. If you don't see it, give Vercel access to that repo.
 3. **Framework preset:** Next.js (it should pick this by itself).
-4. **Build Command:** turn on **Override** and enter:
-   ```
-   npm run build:vercel
-   ```
+4. **Build Command:** leave it at the default (`npm run build`). If you set it to `npm run build:vercel`
+   earlier, that works too, since it does the same thing.
 5. **Environment Variables:** add these (Production):
 
    | Name | Value |
@@ -134,6 +133,7 @@ Follow "Asking restaurants" and "How they join" in the README. Sit with the owne
 
 | Problem | What to check |
 |---|---|
+| `the URL must start with the protocol file:` | The site was built for SQLite. Check `DATABASE_URL` in Vercel starts with `postgresql://`, then **Redeploy** with **"Use existing Build Cache" unchecked**. In the build log, look for `Database: Postgres (live site)`. (On your Mac, `.env` must keep `DATABASE_URL="file:./dev.db"`.) |
 | Build fails with `Environment variable not found: DIRECT_URL` (or `DATABASE_URL`) | Add the variable in Vercel → Settings → Environment Variables, then redeploy. |
 | Build fails with `P1001: Can't reach database server` | Wrong or incomplete connection string. Copy it from Neon again; keep any `?sslmode=require`. |
 | Errors mentioning `prepared statement` | Add `pgbouncer=true` to the end of `DATABASE_URL` (use `&` if it already has a `?`). |

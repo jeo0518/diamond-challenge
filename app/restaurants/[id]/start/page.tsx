@@ -12,11 +12,26 @@ import StartGroupOrderForm from "@/components/group/StartGroupOrderForm";
 
 export const metadata: Metadata = { title: "Start a group order — GroupGrub" };
 
-export default async function StartGroupOrderPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole("CUSTOMER");
+export default async function StartGroupOrderPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ reorder?: string }>;
+}) {
+  const user = await requireRole("CUSTOMER");
   const { id } = await params;
+  const { reorder: reorderId } = await searchParams;
   const restaurant = await prisma.restaurant.findUnique({ where: { id } });
   if (!restaurant || (restaurant.isSample && !showSampleRestaurants())) notFound();
+
+  // Reorder: pre-fill from the organizer's own earlier order at this restaurant.
+  const source = reorderId
+    ? await prisma.groupOrder.findFirst({
+        where: { id: reorderId, organizerId: user.id, restaurantId: restaurant.id },
+        include: { lines: { select: { quantity: true, participantName: true } } },
+      })
+    : null;
 
   // Group slots by day for the dropdown. Times are formatted here (server time zone).
   const slots = await availableSlots(restaurant);
@@ -32,12 +47,19 @@ export default async function StartGroupOrderPage({ params }: { params: Promise<
       <Link href={`/restaurants/${restaurant.id}`} className="text-sm text-orange-700 hover:underline">← Back to menu</Link>
       <div>
         {restaurant.isSample && <SampleBadge className="mb-2" />}
-        <h1 className="text-2xl font-bold">Start a group order</h1>
+        <h1 className="text-2xl font-bold">{source ? "Reorder" : "Start a group order"}</h1>
         <p className="text-gray-600">
           at <b>{restaurant.name}</b> · {restaurant.minGroupSize}
           {restaurant.maxGroupSize ? `–${restaurant.maxGroupSize}` : "+"} items · order {formatLeadTime(restaurant.leadTimeHours)} ahead
         </p>
       </div>
+      {source && (
+        <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">
+          Copying <b>{source.lines.reduce((n, l) => n + l.quantity, 0)} items</b> for{" "}
+          {new Set(source.lines.map((l) => l.participantName)).size} people from &quot;{source.eventName}&quot; at today&apos;s prices.
+          Pick a new time below — you can change items afterwards.
+        </p>
+      )}
       {!restaurant.acceptsGroupOrders ? (
         <p className="rounded-lg bg-gray-100 p-4 text-sm">This restaurant isn&apos;t taking group orders right now.</p>
       ) : (
@@ -48,6 +70,17 @@ export default async function StartGroupOrderPage({ params }: { params: Promise<
           deliveryRadiusMiles={restaurant.deliveryRadiusMiles}
           leadTimeHours={restaurant.leadTimeHours}
           slotsByDay={slotsByDay}
+          reorder={
+            source
+              ? {
+                  fromId: source.id,
+                  eventName: source.eventName,
+                  fulfillment: source.fulfillment,
+                  deliveryAddress: source.deliveryAddress,
+                  expectedHeadcount: source.expectedHeadcount,
+                }
+              : undefined
+          }
         />
       )}
       <p className="text-xs text-gray-500">

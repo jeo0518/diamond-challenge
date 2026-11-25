@@ -21,6 +21,8 @@ export const createGroupOrderSchema = z
     deliveryZip: z.string().trim().max(10).nullable(),
     deliveryLat: z.number().min(-90).max(90).nullable(),
     deliveryLng: z.number().min(-180).max(180).nullable(),
+    // Reorder: copy the items from this earlier order (must be the same organizer + restaurant).
+    reorderFromId: z.string().min(1).max(50).nullable().optional(),
   })
   .superRefine((v, ctx) => {
     if (v.fulfillment === "DELIVERY" && !v.deliveryAddress) {
@@ -48,4 +50,8 @@ export const addLineSchema = z.object({
 
 export const updateQuantitySchema = z.object({
   quantity: z.number().int().min(1).max(100),
+});
+
+export const cancelSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
 });

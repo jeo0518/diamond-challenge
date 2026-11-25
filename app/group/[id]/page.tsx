@@ -2,7 +2,7 @@
 // bulk discount, rule checks, and the Submit button. Only the organizer can see it.
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { requireRole } from "@/lib/session";
 import { loadOrderableMenu, loadOrganizerOrder, toPickerMenu, countOrdersInSlot } from "@/lib/groupOrders";
@@ -15,47 +15,51 @@ import { prisma } from "@/lib/db";
 import { isSlotTime } from "@/lib/timeSlots";
 import SampleBadge from "@/components/SampleBadge";
 import AutoRefresh from "@/components/AutoRefresh";
+import CancelOrderButton from "@/components/group/CancelOrderButton";
 import { AddForSomeone, OrganizerActions, RemoveLineButton, ShareLink } from "@/components/group/OrganizerControls";
 
 export const metadata: Metadata = { title: "Group order — GroupGrub" };
 
-export default async function GroupOrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function GroupOrderPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ copied?: string; skipped?: string }>;
+}) {
   const user = await requireRole("CUSTOMER");
   const { id } = await params;
   const order = await loadOrganizerOrder(id, user.id);
   if (!order) notFound(); // not found OR not this user's order
+  // Once submitted (or cancelled), the order lives on its order-history page with the timeline.
+  if (order.status !== "COLLECTING") redirect(`/orders/${order.id}`);
+  const { copied, skipped } = await searchParams;
+  const skippedItems = skipped ? skipped.split("|").filter(Boolean) : [];
   const { restaurant } = order;
 
   const now = new Date();
-  const collecting = order.status === "COLLECTING";
-  const collectionOpen = collecting && order.participantDeadline > now;
+  const collectionOpen = order.participantDeadline > now;
 
-  // Live price while collecting; frozen totals after submit.
+  // Live price (the server prices it again when the order is submitted).
   const bulkRules = new Map(order.lines.map((l) => [l.menuItemId, l.menuItem]));
   const price = priceGroupOrder(order.lines, bulkRules, restaurant, order.fulfillment);
   const pricedById = new Map(order.lines.map((l, i) => [l.id, price.lines[i]]));
-  const totals = collecting
-    ? { subtotal: price.subtotal, discount: price.discount, fees: price.fees, total: price.total }
-    : { subtotal: order.subtotalCents, discount: order.discountCents, fees: order.feesCents, total: order.totalCents };
 
   // Rule checks (the server checks again when Submit is pressed).
-  let problems: string[] = [];
-  if (collecting) {
-    const rules = await prisma.timeSlotRule.findMany({ where: { restaurantId: restaurant.id, dayOfWeek: order.scheduledFor.getDay() } });
-    const capacity = Math.max(0, ...rules.filter((r) => isSlotTime([r], order.scheduledFor)).map((r) => r.maxOrdersPerSlot));
-    problems = submitProblems({
-      status: order.status,
-      acceptsGroupOrders: restaurant.acceptsGroupOrders,
-      totalQty: price.totalQty,
-      minGroupSize: restaurant.minGroupSize,
-      maxGroupSize: restaurant.maxGroupSize,
-      scheduledFor: order.scheduledFor,
-      leadTimeHours: restaurant.leadTimeHours,
-      now,
-      unavailableItems: [...new Set(order.lines.filter((l) => !l.menuItem.isAvailable || l.menuItem.isDeleted).map((l) => l.itemNameSnapshot))],
-      slotIsFull: (await countOrdersInSlot(restaurant.id, order.scheduledFor, order.id)) >= capacity,
-    });
-  }
+  const dayRules = await prisma.timeSlotRule.findMany({ where: { restaurantId: restaurant.id, dayOfWeek: order.scheduledFor.getDay() } });
+  const capacity = Math.max(0, ...dayRules.filter((r) => isSlotTime([r], order.scheduledFor)).map((r) => r.maxOrdersPerSlot));
+  const problems = submitProblems({
+    status: order.status,
+    acceptsGroupOrders: restaurant.acceptsGroupOrders,
+    totalQty: price.totalQty,
+    minGroupSize: restaurant.minGroupSize,
+    maxGroupSize: restaurant.maxGroupSize,
+    scheduledFor: order.scheduledFor,
+    leadTimeHours: restaurant.leadTimeHours,
+    now,
+    unavailableItems: [...new Set(order.lines.filter((l) => !l.menuItem.isAvailable || l.menuItem.isDeleted).map((l) => l.itemNameSnapshot))],
+    slotIsFull: (await countOrdersInSlot(restaurant.id, order.scheduledFor, order.id)) >= capacity,
+  });
 
   // Group lines by participant name.
   const byPerson = new Map<string, typeof order.lines>();
@@ -71,11 +75,11 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const shareUrl = `${proto}://${host}/join/${order.shareCode}`;
 
-  const menu = collecting ? toPickerMenu(await loadOrderableMenu(restaurant.id)) : [];
+  const menu = toPickerMenu(await loadOrderableMenu(restaurant.id));
 
   return (
     <div className="space-y-5">
-      {collecting && <AutoRefresh seconds={15} />}
+      <AutoRefresh seconds={15} />
 
       <header className="space-y-1 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
         {restaurant.isSample && <SampleBadge className="mb-1" />}
@@ -89,31 +93,22 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
         <p className="text-sm text-gray-600">
           {order.fulfillment === "PICKUP" ? `Pickup at ${restaurant.address}` : `Delivery to ${order.deliveryAddress}`} · {formatDateTime(order.scheduledFor)}
         </p>
-        {collecting && (
-          <p className="text-sm text-gray-600">
-            {collectionOpen ? `People can add items until ${formatDateTime(order.participantDeadline)}.` : "Collection is closed — only you can change items now."}
-            {order.expectedHeadcount ? ` Expecting ${order.expectedHeadcount} people.` : ""}
-          </p>
-        )}
+        <p className="text-sm text-gray-600">
+          {collectionOpen ? `People can add items until ${formatDateTime(order.participantDeadline)}.` : "Collection is closed — only you can change items now."}
+          {order.expectedHeadcount ? ` Expecting ${order.expectedHeadcount} people.` : ""}
+        </p>
       </header>
 
-      {collectionOpen && <ShareLink url={shareUrl} />}
-
-      {(order.rejectReason || order.ownerNote) && (
-        <div className="space-y-1 rounded-xl border border-gray-100 bg-white p-4 text-sm shadow-sm">
-          {order.rejectReason && <p className="text-red-800"><b>Rejected by the restaurant:</b> {order.rejectReason}</p>}
-          {order.ownerNote && <p><b>Note from {restaurant.name}:</b> {order.ownerNote}</p>}
+      {copied != null && (
+        <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
+          <p>✓ Copied {copied} {copied === "1" ? "item" : "items"} from your earlier order, at today&apos;s prices.</p>
+          {skippedItems.length > 0 && (
+            <p className="mt-1 text-amber-800">Not copied (no longer on the menu or options changed): {skippedItems.join(", ")}.</p>
+          )}
         </div>
       )}
 
-      {!collecting && (
-        <p className="rounded-xl bg-purple-50 p-4 text-sm text-purple-900">
-          {order.status === "SUBMITTED"
-            ? "Sent! The restaurant will accept or reject it. Check back here for updates."
-            : `Status: ${STATUS_LABELS[order.status]}.`}{" "}
-          <Link href="/orders" className="font-semibold underline">My orders</Link>
-        </p>
-      )}
+      {collectionOpen && <ShareLink url={shareUrl} />}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
         {/* Who ordered what */}
@@ -138,7 +133,7 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
                       <div className="min-w-0">
                         <p>
                           {l.quantity} × {l.itemNameSnapshot}
-                          {(!l.menuItem.isAvailable || l.menuItem.isDeleted) && collecting && (
+                          {(!l.menuItem.isAvailable || l.menuItem.isDeleted) && (
                             <span className="ml-2 rounded bg-red-100 px-1.5 text-xs text-red-700">no longer available</span>
                           )}
                         </p>
@@ -148,7 +143,7 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
                       <div className="shrink-0 text-right">
                         <p>{formatCents(priced.lineTotal)}</p>
                         {priced.usedBulkPrice && <p className="text-xs text-green-700">bulk price</p>}
-                        {collecting && <RemoveLineButton orderId={order.id} lineId={l.id} label={`${l.quantity} × ${l.itemNameSnapshot} for ${person}`} />}
+                        {<RemoveLineButton orderId={order.id} lineId={l.id} label={`${l.quantity} × ${l.itemNameSnapshot} for ${person}`} />}
                       </div>
                     </li>
                   );
@@ -157,7 +152,7 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
             </div>
           ))}
 
-          {collecting && <AddForSomeone orderId={order.id} menu={menu} defaultName={user.name} />}
+          <AddForSomeone orderId={order.id} menu={menu} defaultName={user.name} />
         </section>
 
         {/* Totals + submit */}
@@ -165,19 +160,19 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
           <div className="space-y-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
             <h2 className="font-bold">Order total</h2>
             <dl className="space-y-1 text-sm">
-              <Row label={`Items (${price.totalQty})`} value={formatCents(totals.subtotal)} />
+              <Row label={`Items (${price.totalQty})`} value={formatCents(price.subtotal)} />
               <Row
-                label={price.tier && collecting ? `Bulk discount (${price.tier.discountPercent}%)` : "Bulk discount"}
-                value={totals.discount ? `−${formatCents(totals.discount)}` : "—"}
+                label={price.tier ? `Bulk discount (${price.tier.discountPercent}%)` : "Bulk discount"}
+                value={price.discount ? `−${formatCents(price.discount)}` : "—"}
                 green
               />
-              <Row label={order.fulfillment === "DELIVERY" ? "Service + delivery fees" : "Service fee"} value={formatCents(totals.fees)} />
+              <Row label={order.fulfillment === "DELIVERY" ? "Service + delivery fees" : "Service fee"} value={formatCents(price.fees)} />
               <div className="flex justify-between border-t border-gray-100 pt-2 text-base font-bold">
                 <dt>Total</dt>
-                <dd data-testid="order-total">{formatCents(totals.total)}</dd>
+                <dd data-testid="order-total">{formatCents(price.total)}</dd>
               </div>
             </dl>
-            {collecting && restaurant.discountTiers.length > 0 && (
+            {restaurant.discountTiers.length > 0 && (
               <p className="text-xs text-gray-500">
                 Discounts: {[...restaurant.discountTiers].sort((a, b) => a.minQuantity - b.minQuantity).map((t) => `${t.minQuantity}+ items ${t.discountPercent}% off`).join(" · ")}.
                 Bulk-priced items don&apos;t get the % discount.
@@ -197,7 +192,6 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
             </div>
           )}
 
-          {collecting && (
             <div className="space-y-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
               <h2 className="font-bold">Ready to send?</h2>
               {problems.length > 0 ? (
@@ -208,8 +202,10 @@ export default async function GroupOrderPage({ params }: { params: Promise<{ id:
                 <p className="text-sm text-green-700">✓ Meets the restaurant&apos;s rules ({restaurant.minGroupSize}+ items).</p>
               )}
               <OrganizerActions orderId={order.id} canSubmit={problems.length === 0} collectionOpen={collectionOpen} />
+              <div className="border-t border-gray-100 pt-3">
+                <CancelOrderButton orderId={order.id} />
+              </div>
             </div>
-          )}
         </aside>
       </div>
     </div>
